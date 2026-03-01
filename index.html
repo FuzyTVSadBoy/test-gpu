@@ -1,70 +1,158 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>ADev Vĩ - Ultra GPU Stress Test</title>
+    <meta charset="UTF-8">
+    <title>ADev Vĩ - The True RTX Melter</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; }
-        canvas { width: 100vw; height: 100vh; }
-        #info { position: absolute; top: 10px; left: 10px; color: lime; font-family: monospace; }
+        canvas { width: 100vw; height: 100vh; display: block; }
+        #overlay {
+            position: absolute; top: 10px; left: 10px; 
+            color: #0f0; font-family: monospace; font-size: 18px; 
+            text-shadow: 0 0 5px #0f0; pointer-events: none;
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
-    <div id="info">RTX 4060 Killer v1.0 | Status: Heavy Rendering...</div>
+    <div id="overlay">
+        [ADev Vĩ] Ultra GPU Stress Test<br>
+        Mode: Full 3D Mandelbulb + Soft Shadows<br>
+        Resolution Scale: 400% (Super Sampling)<br>
+        <span id="fps" style="color: red; font-size: 26px; font-weight: bold;">FPS: --</span>
+    </div>
     <script type="module">
-        import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js';
+        import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
+
+        // Đòn chí mạng: Ép render độ phân giải khổng lồ
+        const renderScale = 4.0; 
 
         const vertexShader = `void main() { gl_Position = vec4(position, 1.0); }`;
-        
-        // ĐOẠN SHADER HÀNH HẠ GPU Ở ĐÂY
+
         const fragmentShader = `
             uniform float time;
             uniform vec2 resolution;
 
-            // Tăng số vòng lặp để vắt kiệt CUDA Cores
-            #define ITERATIONS 128 
-            
+            #define MAX_STEPS 300
+            #define MAX_DIST 10.0
+            #define SURF_DIST 0.001
+
+            // 1. Công thức Fractal Mandelbulb 3D thực thụ
+            float GetDist(vec3 p) {
+                vec3 z = p;
+                float dr = 1.0;
+                float r = 0.0;
+                for (int i = 0; i < 15; i++) {
+                    r = length(z);
+                    if (r > 2.0) break;
+                    // Lượng giác lồng nhau vắt kiệt nhân CUDA
+                    float theta = acos(z.z / r) * 8.0 + time * 0.2;
+                    float phi = atan(z.y, z.x) * 8.0;
+                    dr = pow(r, 7.0) * 8.0 * dr + 1.0;
+                    float zr = pow(r, 8.0);
+                    z = zr * vec3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)) + p;
+                }
+                return 0.5 * log(r) * r / dr;
+            }
+
+            // 2. Tính bề mặt để phản chiếu ánh sáng (Rất tốn tài nguyên)
+            vec3 GetNormal(vec3 p) {
+                float d = GetDist(p);
+                vec2 e = vec2(0.001, 0);
+                vec3 n = d - vec3(GetDist(p-e.xyy), GetDist(p-e.yxy), GetDist(p-e.yyx));
+                return normalize(n);
+            }
+
+            // 3. Đổ bóng mềm (Thêm một vòng lặp Ray Marching lồng bên trong)
+            float SoftShadow(vec3 ro, vec3 rd) {
+                float res = 1.0;
+                float t = 0.01;
+                for(int i = 0; i < 64; i++) {
+                    float h = GetDist(ro + rd * t);
+                    res = min(res, 8.0 * h / t);
+                    t += clamp(h, 0.02, 0.1);
+                    if(h < 0.001 || t > 2.0) break;
+                }
+                return clamp(res, 0.0, 1.0);
+            }
+
             void main() {
                 vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;
-                vec3 ro = vec3(0, 0, -3.0 + sin(time * 0.5));
-                vec3 rd = normalize(vec3(uv, 1.0));
-                vec3 col = vec3(0);
                 
-                float t = 0.0;
-                for(int i = 0; i < 256; i++) { // 256 bước dò tia
-                    vec3 p = ro + rd * t;
-                    // Công thức Fractal Mandelbulb rút gọn - cực kỳ ngốn tính toán
-                    float d = length(p) - 1.0; 
-                    for(int j = 0; j < 8; j++) {
-                        p = abs(p) / dot(p,p) - 0.8;
-                        d = min(d, length(p));
-                    }
-                    if(d < 0.001 || t > 20.0) break;
-                    t += d * 0.5;
+                // Trục Camera xoay liên tục trong không gian 3D
+                vec3 ro = vec3(0.0, 0.0, -2.5);
+                float s = sin(time*0.2), c = cos(time*0.2);
+                ro.xz *= mat2(c, -s, s, c);
+                vec3 rd = normalize(vec3(uv.x, uv.y, 1.0));
+                rd.xz *= mat2(c, -s, s, c);
+
+                float d0 = 0.0;
+                vec3 p;
+                for(int i = 0; i < MAX_STEPS; i++) {
+                    p = ro + rd * d0;
+                    float dS = GetDist(p);
+                    d0 += dS;
+                    if(d0 > MAX_DIST || dS < SURF_DIST) break;
                 }
-                col = vec3(0.1, 0.2, 0.5) * (t * 0.2);
+
+                vec3 col = vec3(0.0);
+                if(d0 < MAX_DIST) {
+                    vec3 n = GetNormal(p);
+                    vec3 lightPos = vec3(2.0 * sin(time), 2.0, -2.0 * cos(time));
+                    vec3 l = normalize(lightPos - p);
+                    
+                    // Xử lý Vật lý ánh sáng
+                    float dif = clamp(dot(n, l), 0.1, 1.0);
+                    float shadow = SoftShadow(p, l);
+                    float spec = pow(max(dot(reflect(-l, n), -rd), 0.0), 32.0);
+                    
+                    col = vec3(0.1, 0.6, 1.0) * dif * shadow + spec;
+                    col = mix(col, vec3(0.0), 1.0 - exp(-0.2 * d0)); // Sương mù 3D
+                }
+
+                col = pow(col, vec3(1.0/2.2)); // Khử răng cưa
                 gl_FragColor = vec4(col, 1.0);
             }
         `;
 
-        // Thiết lập Three.js
         const scene = new THREE.Scene();
         const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
         const renderer = new THREE.WebGLRenderer();
+        
+        // Cài đặt Render Scale đè bẹp GPU
+        renderer.setPixelRatio(window.devicePixelRatio * renderScale);
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const geometry = new THREE.PlaneGeometry(2, 2);
         const uniforms = {
             time: { value: 0 },
-            resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
+            resolution: { value: new THREE.Vector2(window.innerWidth * window.devicePixelRatio * renderScale, window.innerHeight * window.devicePixelRatio * renderScale) }
         };
         const material = new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader });
-        const mesh = new THREE.Mesh(geometry, material);
-        scene.add(mesh);
+        scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
+
+        const fpsEl = document.getElementById('fps');
+        let frames = 0, prevTime = performance.now();
+
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            uniforms.resolution.value.set(
+                window.innerWidth * window.devicePixelRatio * renderScale, 
+                window.innerHeight * window.devicePixelRatio * renderScale
+            );
+        });
 
         function animate(t) {
             uniforms.time.value = t / 1000;
             renderer.render(scene, camera);
+            
+            frames++;
+            let now = performance.now();
+            if (now - prevTime >= 1000) {
+                fpsEl.innerText = "FPS: " + frames;
+                frames = 0;
+                prevTime = now;
+            }
             requestAnimationFrame(animate);
         }
         animate();
