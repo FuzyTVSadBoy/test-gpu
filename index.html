@@ -2,115 +2,109 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ADev Vĩ - The True RTX Melter</title>
+    <title>ADev Vĩ - The RTX Executioner</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; }
         canvas { width: 100vw; height: 100vh; display: block; }
         #overlay {
             position: absolute; top: 10px; left: 10px; 
-            color: #0f0; font-family: monospace; font-size: 18px; 
-            text-shadow: 0 0 5px #0f0; pointer-events: none;
+            color: #ff0055; font-family: monospace; font-size: 18px; 
+            text-shadow: 0 0 5px #ff0055; pointer-events: none;
             z-index: 10;
         }
     </style>
 </head>
 <body>
     <div id="overlay">
-        [ADev Vĩ] Ultra GPU Stress Test<br>
-        Mode: Full 3D Mandelbulb + Soft Shadows<br>
-        Resolution Scale: 400% (Super Sampling)<br>
-        <span id="fps" style="color: red; font-size: 26px; font-weight: bold;">FPS: --</span>
+        [ADev Vĩ] GPU Executioner Mode<br>
+        Engine: Volumetric FBM Raymarching (Brute Force)<br>
+        Target: RTX 4060 & iGPU Destroyer<br>
+        <span id="fps" style="color: yellow; font-size: 26px; font-weight: bold;">FPS: --</span>
     </div>
     <script type="module">
         import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
 
-        // Đòn chí mạng: Ép render độ phân giải khổng lồ
+        // Tùy chỉnh độ phân giải: 2.0 đã nặng, 4.0 là tử thần.
         const renderScale = 4.0; 
 
         const vertexShader = `void main() { gl_Position = vec4(position, 1.0); }`;
 
+        // Shader sử dụng 3D Noise tốn kém nhất có thể
         const fragmentShader = `
             uniform float time;
             uniform vec2 resolution;
 
-            #define MAX_STEPS 300
-            #define MAX_DIST 10.0
-            #define SURF_DIST 0.001
-
-            // 1. Công thức Fractal Mandelbulb 3D thực thụ
-            float GetDist(vec3 p) {
-                vec3 z = p;
-                float dr = 1.0;
-                float r = 0.0;
-                for (int i = 0; i < 15; i++) {
-                    r = length(z);
-                    if (r > 2.0) break;
-                    // Lượng giác lồng nhau vắt kiệt nhân CUDA
-                    float theta = acos(z.z / r) * 8.0 + time * 0.2;
-                    float phi = atan(z.y, z.x) * 8.0;
-                    dr = pow(r, 7.0) * 8.0 * dr + 1.0;
-                    float zr = pow(r, 8.0);
-                    z = zr * vec3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)) + p;
-                }
-                return 0.5 * log(r) * r / dr;
+            // Hàm tạo nhiễu ngẫu nhiên 3D - Cực kỳ tốn ALU (Arithmetic Logic Unit)
+            float hash(vec3 p) {
+                p = fract(p * 0.3183099 + 0.1);
+                p *= 17.0;
+                return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
             }
 
-            // 2. Tính bề mặt để phản chiếu ánh sáng (Rất tốn tài nguyên)
-            vec3 GetNormal(vec3 p) {
-                float d = GetDist(p);
-                vec2 e = vec2(0.001, 0);
-                vec3 n = d - vec3(GetDist(p-e.xyy), GetDist(p-e.yxy), GetDist(p-e.yyx));
-                return normalize(n);
+            // Nội suy nhiễu 3D
+            float noise(vec3 x) {
+                vec3 i = floor(x);
+                vec3 f = fract(x);
+                f = f * f * (3.0 - 2.0 * f);
+                return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
+                               mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+                           mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+                               mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
             }
 
-            // 3. Đổ bóng mềm (Thêm một vòng lặp Ray Marching lồng bên trong)
-            float SoftShadow(vec3 ro, vec3 rd) {
-                float res = 1.0;
-                float t = 0.01;
-                for(int i = 0; i < 64; i++) {
-                    float h = GetDist(ro + rd * t);
-                    res = min(res, 8.0 * h / t);
-                    t += clamp(h, 0.02, 0.1);
-                    if(h < 0.001 || t > 2.0) break;
-                }
-                return clamp(res, 0.0, 1.0);
+            // FBM lặp 5 lần - Sát thủ thực sự
+            float fbm(vec3 p) {
+                float f = 0.0;
+                f += 0.5000 * noise(p); p = p * 2.02;
+                f += 0.2500 * noise(p); p = p * 2.03;
+                f += 0.1250 * noise(p); p = p * 2.01;
+                f += 0.0625 * noise(p); p = p * 2.04;
+                f += 0.03125 * noise(p);
+                return f;
             }
 
             void main() {
                 vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;
                 
-                // Trục Camera xoay liên tục trong không gian 3D
-                vec3 ro = vec3(0.0, 0.0, -2.5);
-                float s = sin(time*0.2), c = cos(time*0.2);
-                ro.xz *= mat2(c, -s, s, c);
-                vec3 rd = normalize(vec3(uv.x, uv.y, 1.0));
-                rd.xz *= mat2(c, -s, s, c);
-
-                float d0 = 0.0;
-                vec3 p;
-                for(int i = 0; i < MAX_STEPS; i++) {
-                    p = ro + rd * d0;
-                    float dS = GetDist(p);
-                    d0 += dS;
-                    if(d0 > MAX_DIST || dS < SURF_DIST) break;
-                }
-
+                vec3 ro = vec3(0.0, 0.0, -3.0 + time * 0.5); // Camera bay xuyên mây
+                vec3 rd = normalize(vec3(uv, 1.0));
+                
+                vec3 lightDir = normalize(vec3(0.5, 1.0, -0.5));
                 vec3 col = vec3(0.0);
-                if(d0 < MAX_DIST) {
-                    vec3 n = GetNormal(p);
-                    vec3 lightPos = vec3(2.0 * sin(time), 2.0, -2.0 * cos(time));
-                    vec3 l = normalize(lightPos - p);
+                
+                float t = 0.0;
+                float density = 0.0;
+                
+                // VÒNG LẶP HỦY DIỆT 1: Bắn tia vào không gian
+                for(int i = 0; i < 200; i++) { 
+                    vec3 p = ro + rd * t;
                     
-                    // Xử lý Vật lý ánh sáng
-                    float dif = clamp(dot(n, l), 0.1, 1.0);
-                    float shadow = SoftShadow(p, l);
-                    float spec = pow(max(dot(reflect(-l, n), -rd), 0.0), 32.0);
+                    // Tính toán hình dáng đám mây tốn kém
+                    float d = fbm(p * 3.0 + time * 0.2) - 0.5; 
                     
-                    col = vec3(0.1, 0.6, 1.0) * dif * shadow + spec;
-                    col = mix(col, vec3(0.0), 1.0 - exp(-0.2 * d0)); // Sương mù 3D
+                    if(d > 0.0) {
+                        // VÒNG LẶP HỦY DIỆT 2: Bắn tia từ đám mây tới mặt trời (Shadow)
+                        float shadow = 1.0;
+                        float lt = 0.1;
+                        for(int j = 0; j < 15; j++) {
+                            float ld = fbm((p + lightDir * lt) * 3.0 + time * 0.2) - 0.5;
+                            if(ld > 0.0) shadow -= 0.1;
+                            lt += 0.1;
+                        }
+                        shadow = max(0.0, shadow);
+                        
+                        // Cộng dồn màu sắc và độ đặc
+                        col += vec3(1.0, 0.6, 0.3) * shadow * d * 0.1;
+                        density += d * 0.1;
+                        if(density > 1.0) break; // Chỉ dừng khi mây quá đặc
+                    }
+                    
+                    t += 0.05; // ÉP BƯỚC CỐ ĐỊNH, KHÔNG TỐI ƯU
                 }
 
-                col = pow(col, vec3(1.0/2.2)); // Khử răng cưa
+                // Nền vũ trụ
+                col = mix(vec3(0.05, 0.1, 0.2), col, min(density, 1.0));
+                
                 gl_FragColor = vec4(col, 1.0);
             }
         `;
@@ -119,7 +113,6 @@
         const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
         const renderer = new THREE.WebGLRenderer();
         
-        // Cài đặt Render Scale đè bẹp GPU
         renderer.setPixelRatio(window.devicePixelRatio * renderScale);
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
