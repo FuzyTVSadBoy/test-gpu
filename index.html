@@ -8,147 +8,124 @@
         canvas { width: 100vw; height: 100vh; display: block; }
         #overlay {
             position: absolute; top: 10px; left: 10px; 
-            color: #ff0055; font-family: monospace; font-size: 18px; 
-            text-shadow: 0 0 5px #ff0055; pointer-events: none;
-            z-index: 10;
+            color: #00ff00; font-family: monospace; font-size: 16px; 
+            text-shadow: 0 0 5px #000; pointer-events: none; z-index: 10;
+            background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px;
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
     <div id="overlay">
         [ADev Vĩ] GPU Executioner Mode<br>
-        Engine: Volumetric FBM Raymarching (Brute Force)<br>
-        Target: RTX 4060 & iGPU Destroyer<br>
-        <span id="fps" style="color: yellow; font-size: 26px; font-weight: bold;">FPS: --</span>
+        Status: <span id="status">Initializing...</span><br>
+        <span id="fps" style="color: yellow; font-size: 24px; font-weight: bold;">FPS: --</span><br>
+        <small>Tip: Press F11 for Full Stress</small>
     </div>
-    <script type="module">
-        import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
+    <script>
+        // Bắt đầu với mức 1.0 để tránh lỗi "Error creating WebGL context"
+        let currentScale = 1.0; 
 
-        // Tùy chỉnh độ phân giải: 2.0 đã nặng, 4.0 là tử thần.
-        const renderScale = 4.0; 
+        const vertexShader = `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = vec4(position, 1.0);
+            }
+        `;
 
-        const vertexShader = `void main() { gl_Position = vec4(position, 1.0); }`;
-
-        // Shader sử dụng 3D Noise tốn kém nhất có thể
         const fragmentShader = `
             uniform float time;
             uniform vec2 resolution;
-
-            // Hàm tạo nhiễu ngẫu nhiên 3D - Cực kỳ tốn ALU (Arithmetic Logic Unit)
-            float hash(vec3 p) {
-                p = fract(p * 0.3183099 + 0.1);
-                p *= 17.0;
-                return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
-            }
-
-            // Nội suy nhiễu 3D
-            float noise(vec3 x) {
-                vec3 i = floor(x);
-                vec3 f = fract(x);
-                f = f * f * (3.0 - 2.0 * f);
-                return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
-                               mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
-                           mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
-                               mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
-            }
-
-            // FBM lặp 5 lần - Sát thủ thực sự
-            float fbm(vec3 p) {
-                float f = 0.0;
-                f += 0.5000 * noise(p); p = p * 2.02;
-                f += 0.2500 * noise(p); p = p * 2.03;
-                f += 0.1250 * noise(p); p = p * 2.01;
-                f += 0.0625 * noise(p); p = p * 2.04;
-                f += 0.03125 * noise(p);
-                return f;
+            
+            float map(vec3 p) {
+                p.xz *= mat2(cos(time*0.3), sin(time*0.3), -sin(time*0.3), cos(time*0.3));
+                vec3 q = p;
+                float s = 1.0;
+                for(int i = 0; i < 10; i++) {
+                    p = abs(p) - vec3(0.4, 1.2, 0.4);
+                    float r2 = dot(p, p);
+                    float k = 1.3 / clamp(r2, 0.1, 1.0);
+                    p *= k;
+                    s *= k;
+                }
+                return length(p) / s;
             }
 
             void main() {
                 vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;
-                
-                vec3 ro = vec3(0.0, 0.0, -3.0 + time * 0.5); // Camera bay xuyên mây
-                vec3 rd = normalize(vec3(uv, 1.0));
-                
-                vec3 lightDir = normalize(vec3(0.5, 1.0, -0.5));
-                vec3 col = vec3(0.0);
-                
+                vec3 ro = vec3(0.0, 0.0, -3.5);
+                vec3 rd = normalize(vec3(uv, 1.2));
                 float t = 0.0;
-                float density = 0.0;
-                
-                // VÒNG LẶP HỦY DIỆT 1: Bắn tia vào không gian
-                for(int i = 0; i < 200; i++) { 
-                    vec3 p = ro + rd * t;
-                    
-                    // Tính toán hình dáng đám mây tốn kém
-                    float d = fbm(p * 3.0 + time * 0.2) - 0.5; 
-                    
-                    if(d > 0.0) {
-                        // VÒNG LẶP HỦY DIỆT 2: Bắn tia từ đám mây tới mặt trời (Shadow)
-                        float shadow = 1.0;
-                        float lt = 0.1;
-                        for(int j = 0; j < 15; j++) {
-                            float ld = fbm((p + lightDir * lt) * 3.0 + time * 0.2) - 0.5;
-                            if(ld > 0.0) shadow -= 0.1;
-                            lt += 0.1;
-                        }
-                        shadow = max(0.0, shadow);
-                        
-                        // Cộng dồn màu sắc và độ đặc
-                        col += vec3(1.0, 0.6, 0.3) * shadow * d * 0.1;
-                        density += d * 0.1;
-                        if(density > 1.0) break; // Chỉ dừng khi mây quá đặc
-                    }
-                    
-                    t += 0.05; // ÉP BƯỚC CỐ ĐỊNH, KHÔNG TỐI ƯU
+                int i;
+                for(i = 0; i < 100; i++) {
+                    float d = map(ro + rd * t);
+                    if(d < 0.001 || t > 20.0) break;
+                    t += d;
                 }
-
-                // Nền vũ trụ
-                col = mix(vec3(0.05, 0.1, 0.2), col, min(density, 1.0));
-                
-                gl_FragColor = vec4(col, 1.0);
+                vec3 col = vec3(float(i)/100.0);
+                col *= vec3(0.1, 0.4, 1.0) * (sin(t * 2.0 + time) * 0.5 + 0.5);
+                gl_FragColor = vec4(pow(col, vec3(0.4545)), 1.0);
             }
         `;
 
-        const scene = new THREE.Scene();
-        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-        const renderer = new THREE.WebGLRenderer();
-        
-        renderer.setPixelRatio(window.devicePixelRatio * renderScale);
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+        let renderer, scene, camera, uniforms;
 
-        const uniforms = {
-            time: { value: 0 },
-            resolution: { value: new THREE.Vector2(window.innerWidth * window.devicePixelRatio * renderScale, window.innerHeight * window.devicePixelRatio * renderScale) }
-        };
-        const material = new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader });
-        scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
+        function init() {
+            try {
+                scene = new THREE.Scene();
+                camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+                
+                // Thêm thuộc tính failIfMajorPerformanceCaveat để tránh treo máy
+                renderer = new THREE.WebGLRenderer({ 
+                    antialias: false,
+                    failIfMajorPerformanceCaveat: false 
+                });
+                
+                renderer.setPixelRatio(window.devicePixelRatio * currentScale);
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                document.body.appendChild(renderer.domElement);
 
-        const fpsEl = document.getElementById('fps');
-        let frames = 0, prevTime = performance.now();
+                uniforms = {
+                    time: { value: 0 },
+                    resolution: { value: new THREE.Vector2() }
+                };
 
-        window.addEventListener('resize', () => {
+                const material = new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader });
+                scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
+
+                updateRes();
+                document.getElementById('status').innerText = "Running (Safe Mode)";
+                animate();
+            } catch (e) {
+                document.getElementById('status').innerText = "WebGL Error: " + e.message;
+                console.error(e);
+            }
+        }
+
+        function updateRes() {
+            const w = window.innerWidth * window.devicePixelRatio * currentScale;
+            const h = window.innerHeight * window.devicePixelRatio * currentScale;
             renderer.setSize(window.innerWidth, window.innerHeight);
-            uniforms.resolution.value.set(
-                window.innerWidth * window.devicePixelRatio * renderScale, 
-                window.innerHeight * window.devicePixelRatio * renderScale
-            );
-        });
+            uniforms.resolution.value.set(w, h);
+        }
 
+        let frames = 0, prevTime = performance.now();
         function animate(t) {
             uniforms.time.value = t / 1000;
             renderer.render(scene, camera);
-            
             frames++;
             let now = performance.now();
             if (now - prevTime >= 1000) {
-                fpsEl.innerText = "FPS: " + frames;
+                document.getElementById('fps').innerText = "FPS: " + frames;
                 frames = 0;
                 prevTime = now;
             }
             requestAnimationFrame(animate);
         }
-        animate();
+
+        window.addEventListener('resize', updateRes);
+        window.onload = init;
     </script>
 </body>
 </html>
