@@ -7,14 +7,15 @@
     <style>
         body { margin: 0; background: #020104; overflow: hidden; font-family: 'Rajdhani', sans-serif; user-select: none; color: white; }
         
-        /* ---------------- HỆ THỐNG HẠT BỤI NEON NGẪU NHIÊN (ĐÃ NÂNG CẤP) ---------------- */
+        /* ---------------- HỆ THỐNG HẠT BỤI NEON (ĐÃ TỐI ƯU SIÊU MƯỢT) ---------------- */
         #particles-container { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
         .particle {
             position: absolute;
             background: #00ffff;
             border-radius: 50%;
             opacity: 0;
-            /* Animation bay lên và nhấp nháy ánh sáng chạy độc lập */
+            /* Bật Hardware Acceleration để UI mượt mà 60FPS không bị khựng */
+            will-change: transform, opacity, box-shadow; 
         }
         
         @keyframes floatParticle {
@@ -26,7 +27,7 @@
         
         @keyframes pulseGlow {
             0% { box-shadow: 0 0 5px #00ffff, 0 0 10px #9632ff; }
-            100% { box-shadow: 0 0 20px #00ffff, 0 0 40px #9632ff, 0 0 60px rgba(0, 255, 255, 0.5); }
+            100% { box-shadow: 0 0 15px #00ffff, 0 0 30px #9632ff; }
         }
 
         /* ---------------- MÀN HÌNH ĐĂNG NHẬP ---------------- */
@@ -45,7 +46,6 @@
             transition: transform 0.3s ease;
         }
 
-        /* FIX KHOẢNG CÁCH CHỮ THANH LỊCH */
         .title-text { font-family: 'Orbitron', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: 4px; margin: 0 0 12px 0; text-shadow: 0 0 15px #b05bff; }
         .sub-text { color: #8a7b9d; font-size: 18px; font-weight: 500; margin: 0; letter-spacing: 2px; }
 
@@ -131,33 +131,33 @@
 
 <script>
     // ==========================================
-    // 1. HỆ THỐNG HẠT BỤI ĐÃ NÂNG CẤP (DÀY ĐẶC VÀ NEON MẠNH HƠN)
+    // 1. HỆ THỐNG HẠT BỤI ĐÃ TỐI ƯU SIÊU MƯỢT
     // ==========================================
     function createParticles() {
         const container = document.getElementById('particles-container');
-        const particleCount = 100; // Tăng gấp đôi số lượng hạt
+        const particleCount = 30; // Giảm xuống 30 hạt để chống lag UI
 
         for (let i = 0; i < particleCount; i++) {
             let p = document.createElement('div');
             p.className = 'particle';
             
-            let size = Math.random() * 6 + 2; // Kích thước đa dạng hơn
+            let size = Math.random() * 5 + 3; 
             p.style.width = size + 'px';
             p.style.height = size + 'px';
             p.style.left = Math.random() * 100 + 'vw';
-            p.style.top = (Math.random() * 120 + 20) + 'vh'; // Nằm rải rác sâu xuống dưới
+            p.style.top = (Math.random() * 100 + 50) + 'vh'; // Xuất hiện từ giữa xuống dưới
             
-            // Vector bay cực kỳ ngẫu nhiên và hỗn loạn
-            let tx = (Math.random() * 600 - 300) + 'px'; 
-            let ty = (Math.random() * -600 - 200) + 'px';
+            // Quỹ đạo bay đa dạng
+            let tx = (Math.random() * 400 - 200) + 'px'; 
+            let ty = (Math.random() * -700 - 300) + 'px'; // Bay cao và xa hơn
             p.style.setProperty('--tx', tx); 
             p.style.setProperty('--ty', ty);
             
-            let floatDuration = Math.random() * 10 + 6; // Bay từ 6s - 16s
-            let pulseDuration = Math.random() * 2 + 1; // Nhấp nháy 1s - 3s
-            let delay = Math.random() * 8;
+            // Giảm delay và duration xuống để hạt luân chuyển xuất hiện liên tục
+            let floatDuration = Math.random() * 5 + 4; // Tốc độ bay 4s - 9s
+            let pulseDuration = Math.random() * 1.5 + 0.5; // Nhấp nháy nhanh hơn
+            let delay = Math.random() * 3; // Delay chỉ 0s - 3s (xuất hiện gần như liên tục)
             
-            // Gộp 2 animation: 1 bay, 1 nhấp nháy sáng
             p.style.animation = `floatParticle ${floatDuration}s ease-in-out ${delay}s infinite, pulseGlow ${pulseDuration}s alternate ${delay}s infinite`;
             
             container.appendChild(p);
@@ -165,8 +165,20 @@
     }
     createParticles();
 
+    // Sửa Keyframes cho Particle
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = `
+        @keyframes floatParticle {
+            0% { transform: translateY(0) translateX(0) scale(0.2); opacity: 0; }
+            15% { opacity: 1; scale: 1; }
+            85% { opacity: 1; scale: 1; }
+            100% { transform: translateY(var(--ty)) translateX(var(--tx)) scale(0.2); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(styleSheet);
+
     // ==========================================
-    // 2. XỬ LÝ NÚT BẤM (CHẮC CHẮN HOẠT ĐỘNG)
+    // 2. XỬ LÝ NÚT BẤM
     // ==========================================
     function checkPasscode() {
         const input = document.getElementById('passcode');
@@ -178,7 +190,6 @@
             input.style.color = "#00ff00";
             input.style.textShadow = "0 0 15px #00ff00";
             
-            // Chuyển cảnh Fade out
             setTimeout(() => {
                 const loginScreen = document.getElementById('login-screen');
                 loginScreen.style.opacity = '0';
@@ -188,15 +199,13 @@
                     const trollScreen = document.getElementById('troll-screen');
                     trollScreen.style.display = 'block';
                     
-                    // Fade in màn hình Troll
                     setTimeout(() => {
                         trollScreen.style.opacity = '1';
-                        startTorture(); // CHỈ GỌI WEBGL KHI ĐÃ SẴN SÀNG
+                        startTorture(); // KÍCH HOẠT HÀNH HẠ
                     }, 50);
                 }, 1000); 
             }, 400);
         } else {
-            // Rung lắc báo lỗi
             panel.classList.remove("error-shake");
             void panel.offsetWidth; 
             panel.classList.add("error-shake");
@@ -211,7 +220,7 @@
     });
 
     // ==========================================
-    // 3. ĐỘNG CƠ HÀNH HẠ X-1.5, X-1.0, X-0.5
+    // 3. ĐỘNG CƠ HÀNH HẠ X-1.5, X-1.0, X-0.5 (NGUYÊN BẢN 100%)
     // ==========================================
     function startTorture() {
         const canvas = document.getElementById("c");
@@ -322,9 +331,6 @@
             const shader = gl.createShader(type);
             gl.shaderSource(shader, source);
             gl.compileShader(shader);
-            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                console.error(gl.getShaderInfoLog(shader));
-            }
             return shader;
         }
 
@@ -349,7 +355,7 @@
 
         let frames = 0, lastFpsTime = performance.now(), lastFrameTime = performance.now();
         
-        let renderScale = 1.0;  // Không cần chờ, kích ngay lập tức!
+        let renderScale = 1.0;  
         let deathScale = 0.0;       
         let aiMode = "PROBING";     
         let cycleStep = 0;          
@@ -361,16 +367,12 @@
             let frameDelta = now - lastFrameTime;
             lastFrameTime = now;
 
-            // GIAI ĐOẠN 1: TĂNG TỐC DÒ TÌM NGƯỠNG TỬ (PROBING)
             if (aiMode === "PROBING") {
                 if (frameDelta >= 1850) {
-                    // TÌM THẤY CỬA TỬ! 
                     deathScale = renderScale;
                     aiMode = "HOVERING";
                     dhEl.style.display = "block";
                     cycleStep = 0; 
-                    
-                    // Giật ngay xuống (X - 1.5) để nhả phanh cứu mạng
                     renderScale = Math.max(0.5, deathScale - 1.5); 
                 } 
                 else {
@@ -383,7 +385,6 @@
                     stEl.className = "hud-text";
                 }
             } 
-            // GIAI ĐOẠN 2: CHU KỲ VỜN CHUỘT THÔNG MINH (X-1.5, X-1.0, X-0.5)
             else if (aiMode === "HOVERING") {
                 if (frameDelta >= 1950) {
                     deathScale = Math.max(1.0, deathScale - 0.5); 
@@ -412,7 +413,6 @@
             let maxSafeScale = Math.floor(16000 / window.innerWidth);
             if (renderScale > maxSafeScale) renderScale = maxSafeScale;
 
-            // Update UI
             ftEl.innerText = "FRAME TIME: " + Math.round(frameDelta) + " ms";
             rsEl.innerText = "VRAM SCALE: " + renderScale.toFixed(2) + "x";
             if (deathScale > 0) dhEl.innerText = "DEATH THRESHOLD: " + deathScale.toFixed(2) + "x";
@@ -445,7 +445,6 @@
             }
             requestAnimationFrame(render);
         }
-        
         requestAnimationFrame(render);
     }
 </script>
