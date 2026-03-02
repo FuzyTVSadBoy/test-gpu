@@ -2,203 +2,329 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ADev Vĩ - Trojan Executioner v2.0</title>
+    <title>System Authorization</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: monospace; }
-        canvas { width: 100vw; height: 100vh; display: block; }
-        #ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; z-index: 10; width: 100%; }
-        #fps-box { position: absolute; top: 15px; left: 15px; color: #00ff00; font-size: 28px; font-weight: bold; text-shadow: 2px 2px 5px #000; z-index: 10; }
+        body { margin: 0; background: #020104; overflow: hidden; font-family: 'Rajdhani', sans-serif; user-select: none; color: white; }
         
-        #fake-loading { color: #00ffaa; font-size: 24px; text-shadow: 0 0 10px #00ffaa; }
-        
-        #trap-msg { display: none; color: #ff0000; font-size: 50px; font-weight: bold; text-shadow: 0 0 40px #ff0000; animation: shake 0.3s infinite; }
-        @keyframes shake {
-            0% { transform: translate(2px, 2px) rotate(0deg); }
-            10% { transform: translate(-2px, -3px) rotate(-2deg); }
-            20% { transform: translate(-4px, 0px) rotate(2deg); }
-            30% { transform: translate(4px, 3px) rotate(0deg); }
-            40% { transform: translate(2px, -2px) rotate(2deg); }
-            50% { transform: translate(-2px, 3px) rotate(-2deg); }
-            60% { transform: translate(-4px, 2px) rotate(0deg); }
-            70% { transform: translate(4px, 2px) rotate(-2deg); }
-            80% { transform: translate(-2px, -2px) rotate(2deg); }
-            90% { transform: translate(2px, 3px) rotate(0deg); }
-            100% { transform: translate(2px, -3px) rotate(-2deg); }
+        /* ---------------- HỆ THỐNG HẠT BỤI NEON NGẪU NHIÊN (ĐÃ NÂNG CẤP) ---------------- */
+        #particles-container { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+        .particle {
+            position: absolute;
+            background: #00ffff;
+            border-radius: 50%;
+            opacity: 0;
+            /* Animation bay lên và nhấp nháy ánh sáng chạy độc lập */
         }
+        
+        @keyframes floatParticle {
+            0% { transform: translateY(0) translateX(0) scale(0.2); opacity: 0; }
+            15% { opacity: 1; scale: 1; }
+            85% { opacity: 1; scale: 1; }
+            100% { transform: translateY(var(--ty)) translateX(var(--tx)) scale(0.2); opacity: 0; }
+        }
+        
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 5px #00ffff, 0 0 10px #9632ff; }
+            100% { box-shadow: 0 0 20px #00ffff, 0 0 40px #9632ff, 0 0 60px rgba(0, 255, 255, 0.5); }
+        }
+
+        /* ---------------- MÀN HÌNH ĐĂNG NHẬP ---------------- */
+        #login-screen {
+            position: fixed; inset: 0; display: flex; justify-content: center; align-items: center;
+            background: radial-gradient(circle at 50% 50%, #150a21 0%, #020104 100%);
+            z-index: 100; transition: opacity 1s ease;
+        }
+        
+        .glass-box {
+            position: relative; z-index: 2;
+            background: rgba(20, 15, 35, 0.45); backdrop-filter: blur(15px);
+            border: 1px solid rgba(150, 50, 255, 0.3); border-radius: 20px;
+            padding: 50px 70px; box-shadow: 0 15px 35px rgba(0,0,0,0.6), inset 0 0 20px rgba(150, 50, 255, 0.1);
+            text-align: center; display: flex; flex-direction: column; gap: 30px;
+            transition: transform 0.3s ease;
+        }
+
+        /* FIX KHOẢNG CÁCH CHỮ THANH LỊCH */
+        .title-text { font-family: 'Orbitron', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: 4px; margin: 0 0 12px 0; text-shadow: 0 0 15px #b05bff; }
+        .sub-text { color: #8a7b9d; font-size: 18px; font-weight: 500; margin: 0; letter-spacing: 2px; }
+
+        .input-wrapper { position: relative; }
+        input {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid transparent; border-bottom: 2px solid #6a00ff;
+            color: #00ffff; font-size: 30px; padding: 15px 20px;
+            text-align: center; font-family: 'Orbitron', monospace; font-weight: 700;
+            border-radius: 8px; outline: none; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            letter-spacing: 6px; width: 280px; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+        }
+        input:hover {
+            transform: translateY(-3px) scale(1.03); 
+            box-shadow: 0 8px 25px rgba(0, 255, 255, 0.3), inset 0 0 15px rgba(0,255,255,0.1);
+            border-bottom: 2px solid #00d4ff;
+        }
+        input:focus { 
+            border-bottom: 2px solid #00ffff; 
+            box-shadow: 0 10px 30px -5px rgba(0, 255, 255, 0.5), inset 0 0 10px rgba(0,255,255,0.1); 
+            transform: translateY(-3px) scale(1.05); 
+        }
+        input::placeholder { color: rgba(0, 255, 255, 0.15); font-size: 24px; letter-spacing: 3px; transition: opacity 0.3s; }
+        input:focus::placeholder { opacity: 0; }
+
+        button {
+            background: linear-gradient(135deg, #6a00ff, #00d4ff);
+            border: none; padding: 16px 40px; font-size: 22px; font-weight: 700; color: white;
+            border-radius: 50px; cursor: pointer; transition: all 0.3s ease; font-family: 'Orbitron', sans-serif;
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.3); margin-top: 5px; letter-spacing: 2px;
+        }
+        button:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 10px 30px rgba(0, 212, 255, 0.6); }
+        button:active { transform: translateY(1px) scale(0.98); }
+
+        .error-shake { animation: shakeError 0.4s ease-in-out; }
+        @keyframes shakeError { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-15px); } 40%, 80% { transform: translateX(15px); } }
+        .error-input { border-bottom-color: #ff0044 !important; color: #ff0044 !important; text-shadow: 0 0 10px #ff0044; box-shadow: 0 5px 20px rgba(255, 0, 68, 0.4) !important;}
+
+        /* ---------------- MÀN HÌNH TRA TẤN ---------------- */
+        #troll-screen { display: none; opacity: 0; transition: opacity 1s; position: fixed; inset: 0; z-index: 200; background: #000; }
+        canvas { width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
+        
+        #ui { position: absolute; top: 15px; left: 15px; text-align: left; pointer-events: none; z-index: 10; font-family: monospace; }
+        #fps-box { color: #00ff00; font-size: 40px; font-weight: bold; text-shadow: 2px 2px 5px #000; margin-bottom: 10px;}
+        .hud-text { color: #00ffff; font-size: 22px; font-weight: bold; text-shadow: 1px 1px 3px #000; background: rgba(0,0,0,0.7); padding: 8px 12px; margin-bottom: 6px; border-left: 5px solid #00ffff;}
+        
+        #trap-msg { position: absolute; top: 50vh; left: 50vw; transform: translate(-50%, -50%); display: none; color: #ff0000; font-size: 45px; font-weight: bold; text-shadow: 0 0 40px #ff0000; animation: trollShake 0.2s infinite; text-align: center; width: 100%; font-family: 'Orbitron', sans-serif;}
+        @keyframes trollShake {
+            0%, 100% { transform: translate(-50%, -50%) translate(3px, 3px); }
+            50% { transform: translate(-50%, -50%) translate(-3px, -3px); }
+        }
+        .red-alert { border-left-color: #ff0000 !important; color: #ffaa00 !important; background: rgba(50,0,0,0.8); }
+        .danger-alert { border-left-color: #ff00ff !important; color: #ff00ff !important; }
     </style>
 </head>
 <body>
-    <div id="fps-box">FPS: 0</div>
-    <div id="ui">
-        <div id="fake-loading">Đang tải tài nguyên 3D... (Vui lòng đợi)</div>
-        <div id="trap-msg">KÍCH HOẠT ÁN TỬ!!!<br><span style="font-size: 20px; color: #ff8800;">RTX 4060 MELTDOWN IN PROGRESS</span></div>
+
+    <div id="login-screen">
+        <div id="particles-container"></div>
+        <div class="glass-box" id="glass-panel">
+            <div>
+                <h2 class="title-text">RESTRICTED AREA</h2>
+                <p class="sub-text">Enter Authorization Key</p>
+            </div>
+            <div class="input-wrapper">
+                <input type="text" id="passcode" maxlength="7" placeholder="XXXXXXX" autocomplete="off" spellcheck="false">
+            </div>
+            <button onclick="checkPasscode()">XÁC NHẬN</button>
+        </div>
     </div>
-    <canvas id="c"></canvas>
+
+    <div id="troll-screen">
+        <div id="ui">
+            <div id="fps-box">FPS: 60</div>
+            <div id="hud-ft" class="hud-text">FRAME TIME: 0 ms</div>
+            <div id="hud-scale" class="hud-text">VRAM SCALE: 1.0x</div>
+            <div id="hud-death" class="hud-text" style="display: none; color: #ff0044; border-left-color: #ff0044;">DEATH THRESHOLD: --</div>
+            <div id="hud-status" class="hud-text" style="color:#00ffaa; border-left-color:#00ffaa;">AI: Đang dò giới hạn tột cùng...</div>
+        </div>
+        <div id="trap-msg">AUTHORIZATION GRANTED!<br><span style="font-size: 30px; color: #ff8800;">TORTURE CYCLE INITIATED</span></div>
+        <canvas id="c"></canvas>
+    </div>
 
 <script>
-    const canvas = document.getElementById("c");
-    const gl = canvas.getContext("webgl2");
+    // ==========================================
+    // 1. HỆ THỐNG HẠT BỤI ĐÃ NÂNG CẤP (DÀY ĐẶC VÀ NEON MẠNH HƠN)
+    // ==========================================
+    function createParticles() {
+        const container = document.getElementById('particles-container');
+        const particleCount = 100; // Tăng gấp đôi số lượng hạt
 
-    canvas.addEventListener("webglcontextlost", (e) => {
-        e.preventDefault();
-        document.getElementById("trap-msg").innerHTML = "💀 GPU ĐÃ ĐẮP CHIẾU 💀<br><small>Windows đã ngắt điện để cứu máy!</small>";
-        document.getElementById("fps-box").innerText = "SYSTEM CRASH";
-        document.getElementById("fps-box").style.color = "red";
-    }, false);
+        for (let i = 0; i < particleCount; i++) {
+            let p = document.createElement('div');
+            p.className = 'particle';
+            
+            let size = Math.random() * 6 + 2; // Kích thước đa dạng hơn
+            p.style.width = size + 'px';
+            p.style.height = size + 'px';
+            p.style.left = Math.random() * 100 + 'vw';
+            p.style.top = (Math.random() * 120 + 20) + 'vh'; // Nằm rải rác sâu xuống dưới
+            
+            // Vector bay cực kỳ ngẫu nhiên và hỗn loạn
+            let tx = (Math.random() * 600 - 300) + 'px'; 
+            let ty = (Math.random() * -600 - 200) + 'px';
+            p.style.setProperty('--tx', tx); 
+            p.style.setProperty('--ty', ty);
+            
+            let floatDuration = Math.random() * 10 + 6; // Bay từ 6s - 16s
+            let pulseDuration = Math.random() * 2 + 1; // Nhấp nháy 1s - 3s
+            let delay = Math.random() * 8;
+            
+            // Gộp 2 animation: 1 bay, 1 nhấp nháy sáng
+            p.style.animation = `floatParticle ${floatDuration}s ease-in-out ${delay}s infinite, pulseGlow ${pulseDuration}s alternate ${delay}s infinite`;
+            
+            container.appendChild(p);
+        }
+    }
+    createParticles();
 
-    if (gl) {
-        const vsSource = `#version 300 es
-            in vec2 position;
-            void main() { gl_Position = vec4(position, 0.0, 1.0); }
-        `;
+    // ==========================================
+    // 2. XỬ LÝ NÚT BẤM (CHẮC CHẮN HOẠT ĐỘNG)
+    // ==========================================
+    function checkPasscode() {
+        const input = document.getElementById('passcode');
+        const panel = document.getElementById('glass-panel');
+        const code = input.value.trim().toUpperCase();
 
-        const fsSource = `#version 300 es
-            precision highp float;
-            uniform float time;
-            uniform vec2 resolution;
-            uniform float unleash; 
-            out vec4 fragColor;
-
-            mat2 rot(float a) { return mat2(cos(a), sin(a), -sin(a), cos(a)); }
-
-            float GetDist(vec3 p) {
-                // ĐÒN HIỂM 1: Phá vỡ định luật không gian (SDF Corruption)
-                // Ép GPU không thể nhảy cóc, phải tính toán từng pixel li ti
-                if (unleash > 0.5) {
-                    p += sin(p.zxy * 5.0 + time * 2.0) * 0.015;
-                }
-
-                vec3 z = p;
-                float dr = 1.0;
-                float r = 0.0;
+        if (code === "Y4JKDP9") {
+            input.style.borderBottomColor = "#00ff00";
+            input.style.color = "#00ff00";
+            input.style.textShadow = "0 0 15px #00ff00";
+            
+            // Chuyển cảnh Fade out
+            setTimeout(() => {
+                const loginScreen = document.getElementById('login-screen');
+                loginScreen.style.opacity = '0';
                 
-                // Tăng lên 20 vòng lặp Fractal lồng nhau
-                int max_iter = (unleash > 0.5) ? 20 : 4; 
-                
-                for (int i = 0; i < 20; i++) {
-                    if (i >= max_iter) break;
-                    r = length(z);
-                    if (r > 2.0) break;
+                setTimeout(() => {
+                    loginScreen.style.display = 'none';
+                    const trollScreen = document.getElementById('troll-screen');
+                    trollScreen.style.display = 'block';
                     
-                    if (unleash > 0.5) {
-                        z.xy *= rot(time * 0.05);
-                        z.xz *= rot(time * 0.08);
-                    }
+                    // Fade in màn hình Troll
+                    setTimeout(() => {
+                        trollScreen.style.opacity = '1';
+                        startTorture(); // CHỈ GỌI WEBGL KHI ĐÃ SẴN SÀNG
+                    }, 50);
+                }, 1000); 
+            }, 400);
+        } else {
+            // Rung lắc báo lỗi
+            panel.classList.remove("error-shake");
+            void panel.offsetWidth; 
+            panel.classList.add("error-shake");
+            input.classList.add("error-input");
+            
+            setTimeout(() => { input.classList.remove("error-input"); }, 500);
+        }
+    }
 
-                    float theta = acos(z.z / r) * 8.0;
-                    float phi = atan(z.y, z.x) * 8.0;
-                    dr = pow(r, 7.0) * 8.0 * dr + 1.0;
-                    
-                    float zr = pow(r, 8.0);
-                    z = zr * vec3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)) + p;
-                }
-                return 0.5 * log(r) * r / dr;
-            }
+    document.getElementById('passcode').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') checkPasscode();
+    });
 
-            vec3 GetNormal(vec3 p) {
-                vec2 e = vec2(0.001, 0);
-                return normalize(vec3(
-                    GetDist(p + e.xyy) - GetDist(p - e.xyy),
-                    GetDist(p + e.yxy) - GetDist(p - e.yxy),
-                    GetDist(p + e.yyx) - GetDist(p - e.yyx)
-                ));
-            }
+    // ==========================================
+    // 3. ĐỘNG CƠ HÀNH HẠ X-1.5, X-1.0, X-0.5
+    // ==========================================
+    function startTorture() {
+        const canvas = document.getElementById("c");
+        const gl = canvas.getContext("webgl2", { antialias: false });
 
-            // ĐÒN HIỂM 2: Ambient Occlusion (Tính hốc tối)
-            float CalcAO(vec3 p, vec3 n) {
-                if(unleash < 0.5) return 1.0;
-                float occ = 0.0;
-                float sca = 1.0;
-                for(int i = 0; i < 5; i++) {
-                    float h = 0.01 + 0.12 * float(i) / 4.0;
-                    float d = GetDist(p + h * n);
-                    occ += (h - d) * sca;
-                    sca *= 0.75;
-                }
-                return clamp(1.0 - 2.0 * occ, 0.0, 1.0);
-            }
+        if (!gl) { alert("Cấp cứu: Trình duyệt không hỗ trợ WebGL 2.0!"); return; }
 
-            float SoftShadow(vec3 ro, vec3 rd) {
-                if (unleash < 0.5) return 1.0; 
-                float res = 1.0;
-                float t = 0.02;
-                // Ép vòng lặp bóng đổ lên 60 lần thay vì 40
-                for(int i = 0; i < 60; i++) {
-                    float h = GetDist(ro + rd * t);
-                    res = min(res, 8.0 * h / t);
-                    t += clamp(h, 0.01, 0.05);
-                    if(h < 0.0001 || t > 4.0) break;
-                }
-                return clamp(res, 0.0, 1.0);
-            }
+        canvas.addEventListener("webglcontextlost", (e) => {
+            e.preventDefault();
+            document.getElementById("trap-msg").innerHTML = "💀 GPU ĐÃ BỊ HỦY DIỆT 💀";
+            document.getElementById("trap-msg").style.display = "block";
+            document.getElementById("fps-box").innerText = "SYSTEM CRASH";
+            document.getElementById("fps-box").style.color = "red";
+        }, false);
 
-            void main() {
-                vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;
-                
-                vec3 ro = vec3(0.0, 0.0, -2.8);
-                float s = sin(time*0.2), c = cos(time*0.2);
-                ro.xz *= mat2(c, -s, s, c);
-                vec3 rd = normalize(vec3(uv.x, uv.y, 1.0));
-                rd.xz *= mat2(c, -s, s, c);
+        const vsSource = "#version 300 es\n" +
+            "in vec2 position;\n" +
+            "void main() { gl_Position = vec4(position, 0.0, 1.0); }\n";
 
-                vec3 col = vec3(0.0);
-                vec3 cur_ro = ro;
-                vec3 cur_rd = rd;
-                vec3 refCol = vec3(1.0);
-
-                int bounces = (unleash > 0.5) ? 2 : 1; 
-                // Ép Raymarching cày 400 bước cho mỗi pixel!
-                int steps = (unleash > 0.5) ? 400 : 80;
-
-                for(int bounce = 0; bounce < 2; bounce++) {
-                    if (bounce >= bounces) break;
-                    
-                    float d0 = 0.0;
-                    vec3 p;
-                    
-                    for(int i = 0; i < 400; i++) {
-                        if (i >= steps) break;
-                        p = cur_ro + cur_rd * d0;
-                        float dS = GetDist(p);
-                        d0 += dS;
-                        if(d0 > 12.0 || dS < 0.001) break;
-                    }
-
-                    if(d0 < 12.0) {
-                        vec3 n = GetNormal(p);
-                        vec3 l1 = normalize(vec3(2.0 * sin(time), 3.0, -2.0 * cos(time)) - p);
-                        
-                        float dif1 = max(dot(n, l1), 0.0) * SoftShadow(p, l1);
-                        vec3 matCol = vec3(0.2, 0.8, 1.0) * dif1; 
-                        
-                        if (unleash > 0.5) {
-                            vec3 l2 = normalize(vec3(-2.0, -1.0, 2.0) - p);
-                            float dif2 = max(dot(n, l2), 0.0) * SoftShadow(p, l2);
-                            float ao = CalcAO(p, n); // Gọi Ambient Occlusion
-                            
-                            matCol += vec3(1.0, 0.1, 0.2) * dif2;
-                            matCol *= ao; // Trộn hốc tối để hình ảnh cực kỳ gai góc
-                        }
-
-                        col += refCol * matCol;
-                        refCol *= vec3(0.3, 0.4, 0.5); 
-                        cur_ro = p + n * 0.005;
-                        cur_rd = reflect(cur_rd, n);
-                    } else {
-                        col += refCol * vec3(0.02, 0.02, 0.05);
-                        break;
-                    }
-                }
-
-                col = pow(col, vec3(0.4545));
-                fragColor = vec4(col, 1.0);
-            }
-        `;
+        const fsSource = "#version 300 es\n" +
+            "precision highp float;\n" +
+            "uniform float time;\n" +
+            "uniform vec2 resolution;\n" +
+            "out vec4 fragColor;\n" +
+            "mat2 rot(float a) { return mat2(cos(a), sin(a), -sin(a), cos(a)); }\n" +
+            "float GetDist(vec3 p) {\n" +
+            "    p += sin(p.zxy * 5.0 + time * 2.0) * 0.015;\n" +
+            "    vec3 z = p;\n" +
+            "    float dr = 1.0; float r = 0.0;\n" +
+            "    for (int i = 0; i < 25; i++) { \n" +
+            "        r = length(z);\n" +
+            "        if (r > 2.0) break;\n" +
+            "        z.xy *= rot(time * 0.05);\n" +
+            "        z.xz *= rot(time * 0.08);\n" +
+            "        float theta = acos(z.z / r) * 8.0;\n" +
+            "        float phi = atan(z.y, z.x) * 8.0;\n" +
+            "        dr = pow(r, 7.0) * 8.0 * dr + 1.0;\n" +
+            "        float zr = pow(r, 8.0);\n" +
+            "        z = zr * vec3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)) + p;\n" +
+            "    }\n" +
+            "    return 0.5 * log(r) * r / dr;\n" +
+            "}\n" +
+            "vec3 GetNormal(vec3 p) {\n" +
+            "    vec2 e = vec2(0.001, 0);\n" +
+            "    return normalize(vec3(\n" +
+            "        GetDist(p + e.xyy) - GetDist(p - e.xyy),\n" +
+            "        GetDist(p + e.yxy) - GetDist(p - e.yxy),\n" +
+            "        GetDist(p + e.yyx) - GetDist(p - e.yyx)\n" +
+            "    ));\n" +
+            "}\n" +
+            "float SoftShadow(vec3 ro, vec3 rd) {\n" +
+            "    float res = 1.0; float t = 0.02;\n" +
+            "    for(int i = 0; i < 60; i++) {\n" +
+            "        float h = GetDist(ro + rd * t);\n" +
+            "        res = min(res, 8.0 * h / t);\n" +
+            "        t += clamp(h, 0.01, 0.05);\n" +
+            "        if(h < 0.0001 || t > 4.0) break;\n" +
+            "    }\n" +
+            "    return clamp(res, 0.0, 1.0);\n" +
+            "}\n" +
+            "float CalcAO(vec3 p, vec3 n) {\n" +
+            "    float occ = 0.0; float sca = 1.0;\n" +
+            "    for(int i = 0; i < 6; i++) {\n" +
+            "        float h = 0.01 + 0.12 * float(i) / 4.0;\n" +
+            "        float d = GetDist(p + h * n);\n" +
+            "        occ += (h - d) * sca;\n" +
+            "        sca *= 0.75;\n" +
+            "    }\n" +
+            "    return clamp(1.0 - 2.0 * occ, 0.0, 1.0);\n" +
+            "}\n" +
+            "void main() {\n" +
+            "    vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;\n" +
+            "    vec3 ro = vec3(0.0, 0.0, -2.8);\n" +
+            "    float s = sin(time*0.2), c = cos(time*0.2);\n" +
+            "    ro.xz *= mat2(c, -s, s, c);\n" +
+            "    vec3 rd = normalize(vec3(uv.x, uv.y, 1.0));\n" +
+            "    rd.xz *= mat2(c, -s, s, c);\n" +
+            "    vec3 col = vec3(0.0);\n" +
+            "    vec3 cur_ro = ro; vec3 cur_rd = rd; vec3 refCol = vec3(1.0);\n" +
+            "    for(int bounce = 0; bounce < 2; bounce++) {\n" +
+            "        float d0 = 0.0; vec3 p;\n" +
+            "        for(int i = 0; i < 400; i++) { \n" +
+            "            p = cur_ro + cur_rd * d0;\n" +
+            "            float dS = GetDist(p); d0 += dS;\n" +
+            "            if(d0 > 12.0 || dS < 0.001) break;\n" +
+            "        }\n" +
+            "        if(d0 < 12.0) {\n" +
+            "            vec3 n = GetNormal(p);\n" +
+            "            vec3 l1 = normalize(vec3(2.0 * sin(time), 3.0, -2.0 * cos(time)) - p);\n" +
+            "            vec3 l2 = normalize(vec3(-2.0, -1.0, 2.0) - p);\n" +
+            "            float dif1 = max(dot(n, l1), 0.0) * SoftShadow(p, l1);\n" +
+            "            float dif2 = max(dot(n, l2), 0.0) * SoftShadow(p, l2);\n" +
+            "            float ao = CalcAO(p, n);\n" +
+            "            vec3 matCol = vec3(1.0, 0.1, 0.5) * dif1 + vec3(0.1, 0.8, 1.0) * dif2; \n" +
+            "            matCol *= ao; \n" +
+            "            col += refCol * matCol;\n" +
+            "            refCol *= vec3(0.3, 0.4, 0.5); \n" +
+            "            cur_ro = p + n * 0.005; cur_rd = reflect(cur_rd, n);\n" +
+            "        } else {\n" +
+            "            col += refCol * vec3(0.02, 0.02, 0.05); break;\n" +
+            "        }\n" +
+            "    }\n" +
+            "    col = pow(col, vec3(0.4545));\n" +
+            "    fragColor = vec4(col, 1.0);\n" +
+            "}\n";
 
         function compileShader(type, source) {
             const shader = gl.createShader(type);
             gl.shaderSource(shader, source);
             gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error(gl.getShaderInfoLog(shader));
+            }
             return shader;
         }
 
@@ -214,48 +340,112 @@
 
         const timeUnif = gl.getUniformLocation(prog, "time");
         const resUnif = gl.getUniformLocation(prog, "resolution");
-        const unleashUnif = gl.getUniformLocation(prog, "unleash");
 
-        let frames = 0, lastTime = performance.now();
         const fpsEl = document.getElementById('fps-box');
+        const ftEl = document.getElementById('hud-ft');
+        const rsEl = document.getElementById('hud-scale');
+        const dhEl = document.getElementById('hud-death');
+        const stEl = document.getElementById('hud-status');
+
+        let frames = 0, lastFpsTime = performance.now(), lastFrameTime = performance.now();
         
-        let isUnleashed = false;
-        let renderScale = 0.5; 
-        let startTime = performance.now();
+        let renderScale = 1.0;  // Không cần chờ, kích ngay lập tức!
+        let deathScale = 0.0;       
+        let aiMode = "PROBING";     
+        let cycleStep = 0;          
+
+        document.getElementById('trap-msg').style.display = "block";
+        setTimeout(() => document.getElementById('trap-msg').style.display = "none", 2500);
 
         function render(now) {
-            if (!isUnleashed && now - startTime > 3000) {
-                isUnleashed = true;
-                // ĐÒN HIỂM 3: ÉP RENDER SCALE TỪ 4.0 LÊN 5.0 (Tương đương độ phân giải 10K+)
-                renderScale = 5.0; 
+            let frameDelta = now - lastFrameTime;
+            lastFrameTime = now;
+
+            // GIAI ĐOẠN 1: TĂNG TỐC DÒ TÌM NGƯỠNG TỬ (PROBING)
+            if (aiMode === "PROBING") {
+                if (frameDelta >= 1850) {
+                    // TÌM THẤY CỬA TỬ! 
+                    deathScale = renderScale;
+                    aiMode = "HOVERING";
+                    dhEl.style.display = "block";
+                    cycleStep = 0; 
+                    
+                    // Giật ngay xuống (X - 1.5) để nhả phanh cứu mạng
+                    renderScale = Math.max(0.5, deathScale - 1.5); 
+                } 
+                else {
+                    if (frameDelta < 500) renderScale += 0.8;
+                    else if (frameDelta < 1200) renderScale += 0.4;
+                    else if (frameDelta < 1600) renderScale += 0.15;
+                    else renderScale += 0.05; 
+                    
+                    stEl.innerText = "AI STATUS: Bơm Scale tìm ngưỡng tử...";
+                    stEl.className = "hud-text";
+                }
+            } 
+            // GIAI ĐOẠN 2: CHU KỲ VỜN CHUỘT THÔNG MINH (X-1.5, X-1.0, X-0.5)
+            else if (aiMode === "HOVERING") {
+                if (frameDelta >= 1950) {
+                    deathScale = Math.max(1.0, deathScale - 0.5); 
+                    cycleStep = 0;
+                }
                 
-                document.getElementById('fake-loading').style.display = "none";
-                document.getElementById('trap-msg').style.display = "block";
-                fpsEl.style.color = "red";
+                cycleStep = (cycleStep + 1) % 3;
                 
-                canvas.width = window.innerWidth * renderScale;
-                canvas.height = window.innerHeight * renderScale;
+                if (cycleStep === 0) {
+                    renderScale = Math.max(0.5, deathScale - 1.5);
+                    stEl.innerText = `AI HOVERING: Giảm tạ (Scale -1.5)...`;
+                    stEl.className = "hud-text danger-alert";
+                } 
+                else if (cycleStep === 1) {
+                    renderScale = Math.max(0.5, deathScale - 1.0);
+                    stEl.innerText = `AI HOVERING: Nhồi tạ (Scale -1.0)...`;
+                    stEl.className = "hud-text red-alert";
+                } 
+                else if (cycleStep === 2) {
+                    renderScale = Math.max(0.5, deathScale - 0.5);
+                    stEl.innerText = `AI HOVERING: Siết cổ (Scale -0.5) cực đại!`;
+                    stEl.className = "hud-text red-alert";
+                }
             }
 
-            if (canvas.width !== window.innerWidth * renderScale || canvas.height !== window.innerHeight * renderScale) {
-                canvas.width = window.innerWidth * renderScale;
-                canvas.height = window.innerHeight * renderScale;
+            let maxSafeScale = Math.floor(16000 / window.innerWidth);
+            if (renderScale > maxSafeScale) renderScale = maxSafeScale;
+
+            // Update UI
+            ftEl.innerText = "FRAME TIME: " + Math.round(frameDelta) + " ms";
+            rsEl.innerText = "VRAM SCALE: " + renderScale.toFixed(2) + "x";
+            if (deathScale > 0) dhEl.innerText = "DEATH THRESHOLD: " + deathScale.toFixed(2) + "x";
+
+            if (frameDelta > 1600) ftEl.style.color = "red";
+            else if (frameDelta > 800) ftEl.style.color = "yellow";
+            else ftEl.style.color = "#00ffff";
+
+            let targetWidth = Math.floor(window.innerWidth * renderScale);
+            let targetHeight = Math.floor(window.innerHeight * renderScale);
+            
+            if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
             }
             gl.viewport(0, 0, canvas.width, canvas.height);
 
             gl.uniform1f(timeUnif, now * 0.001);
             gl.uniform2f(resUnif, canvas.width, canvas.height);
-            gl.uniform1f(unleashUnif, isUnleashed ? 1.0 : 0.0);
 
             gl.drawArrays(gl.TRIANGLES, 0, 6);
+            gl.finish();
 
             frames++;
-            if (now - lastTime >= 1000) {
+            if (now - lastFpsTime >= 1000) {
                 fpsEl.innerText = "FPS: " + frames;
-                frames = 0; lastTime = now;
+                fpsEl.style.color = frames >= 30 ? "#00ff00" : (frames >= 10 ? "#ffff00" : "#ff0000");
+                frames = 0; 
+                lastFpsTime = now;
             }
             requestAnimationFrame(render);
         }
+        
         requestAnimationFrame(render);
     }
 </script>
