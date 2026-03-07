@@ -65,6 +65,30 @@
         @keyframes shakeError { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-15px); } 40%, 80% { transform: translateX(15px); } }
         .error-input { border-bottom-color: #ff0044 !important; color: #ff0044 !important; text-shadow: 0 0 10px #ff0044; box-shadow: 0 5px 20px rgba(255, 0, 68, 0.4) !important;}
 
+        /* ---------------- MOBILE / RESPONSIVE FIX (CHỈ LOGIN) ---------------- */
+        button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        input { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+        @media (max-width: 480px) {
+            .glass-box { padding: 36px 28px; gap: 22px; width: 88vw; max-width: 360px; box-sizing: border-box; }
+            .title-text { font-size: 20px; letter-spacing: 2px; }
+            .sub-text { font-size: 14px; }
+            input { font-size: 22px; padding: 14px 12px; width: 100%; max-width: 260px; letter-spacing: 8px; box-sizing: border-box; }
+            input::placeholder { font-size: 18px; }
+            button { font-size: 17px; padding: 14px 30px; width: 100%; }
+        }
+
+        @media (max-width: 360px) {
+            .glass-box { padding: 28px 18px; }
+            .title-text { font-size: 16px; }
+            input { font-size: 18px; letter-spacing: 6px; }
+        }
+
+        @media (min-width: 481px) and (max-width: 768px) {
+            .glass-box { padding: 40px 50px; }
+            input { width: 240px; font-size: 26px; }
+        }
+
         /* ---------------- MÀN HÌNH TRA TẤN ---------------- */
         #troll-screen { display: none; opacity: 0; transition: opacity 1s; position: fixed; inset: 0; z-index: 200; background: #000; }
         canvas { width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
@@ -94,7 +118,11 @@
                 <p class="sub-text">Enter Authorization Key</p>
             </div>
             <div class="input-wrapper">
-                <input type="text" id="passcode" maxlength="7" placeholder="XXXXXXX" autocomplete="off" spellcheck="false">
+                <input type="text" id="passcode" maxlength="7" placeholder="XXXXXXX" 
+                    autocomplete="off" spellcheck="false" 
+                    autocapitalize="characters" autocorrect="off"
+                    inputmode="text"
+                    enterkeyhint="go">
             </div>
             <button onclick="checkPasscode()">XÁC NHẬN</button>
         </div>
@@ -118,7 +146,11 @@
 
 <script>
     // NGĂN CHẶN CẢM ỨNG & CHUỘT PHẢI
-    document.addEventListener('touchstart', function(e) { e.preventDefault(); }, { passive: false });
+    // Chỉ chặn touch khi đang ở troll-screen, để login hoạt động bình thường trên mobile
+    document.addEventListener('touchstart', function(e) {
+        if (document.getElementById('login-screen').style.display !== 'none') return; // Cho phép touch ở login
+        e.preventDefault();
+    }, { passive: false });
     document.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
     document.addEventListener('contextmenu', event => event.preventDefault());
 
@@ -148,7 +180,9 @@
     let workerSwarm = [];
 
     function checkPasscode() {
-        if (document.getElementById('passcode').value.toUpperCase() === "Y4JKDP9") {
+        const input = document.getElementById('passcode');
+        input.value = input.value.toUpperCase(); // Auto uppercase trước khi check
+        if (input.value === "Y4JKDP9") {
             document.getElementById('passcode').style.color = "#00ff00";
             document.getElementById('passcode').style.borderBottomColor = "#00ff00";
             document.getElementById('passcode').style.textShadow = "0 0 15px #00ff00";
@@ -177,6 +211,12 @@
         }
     }
     document.getElementById('passcode').addEventListener('keypress', function (e) { if (e.key === 'Enter') checkPasscode(); });
+    // Tự động viết hoa khi gõ (hỗ trợ Android/iOS không có autocapitalize)
+    document.getElementById('passcode').addEventListener('input', function () {
+        const pos = this.selectionStart;
+        this.value = this.value.toUpperCase();
+        this.setSelectionRange(pos, pos);
+    });
 
     // ==========================================
     // ĐỘNG CƠ HỦY DIỆT: CPU, GPU, RAM, VÀ DISK CÙNG NỔ
