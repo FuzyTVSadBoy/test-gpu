@@ -4,34 +4,61 @@
     <meta charset="UTF-8">
     <title>ADev Vĩ - Trojan Executioner v2.0</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: monospace; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         canvas { width: 100vw; height: 100vh; display: block; }
+        
         #ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; z-index: 10; width: 100%; }
-        #fps-box { position: absolute; top: 15px; left: 15px; color: #00ff00; font-size: 28px; font-weight: bold; text-shadow: 2px 2px 5px #000; z-index: 10; }
-        
-        #fake-loading { color: #00ffaa; font-size: 24px; text-shadow: 0 0 10px #00ffaa; }
-        
-        #trap-msg { display: none; color: #ff0000; font-size: 50px; font-weight: bold; text-shadow: 0 0 40px #ff0000; animation: shake 0.3s infinite; }
-        
-        /* Hiệu ứng mới cho chữ Troll */
-        @keyframes pop {
-            0% { transform: scale(0.5); opacity: 0; }
-            80% { transform: scale(1.1); opacity: 1; }
-            100% { transform: scale(1); opacity: 1; }
+        #fps-box { position: absolute; top: 15px; left: 15px; color: #00ff00; font-size: 28px; font-weight: bold; text-shadow: 2px 2px 5px #000; z-index: 10; font-family: monospace; }
+        #fake-loading { color: #00ffaa; font-size: 24px; text-shadow: 0 0 10px #00ffaa; font-family: monospace; }
+        #trap-msg { display: none; color: #ff0000; font-size: 50px; font-weight: bold; text-shadow: 0 0 40px #ff0000; animation: shake 0.3s infinite; font-family: monospace; }
+
+        .end-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            perspective: 1000px;
+        }
+
+        .troll-title {
+            font-size: clamp(40px, 8vw, 120px);
+            font-weight: 900;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 8px;
+            opacity: 0;
+            transform: rotateX(-20deg) scale(0.8) translateY(50px);
+            animation: cinematicReveal 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards, neonPulse 2s cubic-bezier(0.4, 0, 0.6, 1) 1.2s infinite alternate;
+        }
+
+        .troll-sub {
+            font-size: clamp(14px, 2vw, 24px);
+            color: #888;
+            margin-top: 2vh;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slideUpFade 1s cubic-bezier(0.16, 1, 0.3, 1) 0.8s forwards;
         }
 
         @keyframes shake {
-            0% { transform: translate(2px, 2px) rotate(0deg); }
-            10% { transform: translate(-2px, -3px) rotate(-2deg); }
-            20% { transform: translate(-4px, 0px) rotate(2deg); }
-            30% { transform: translate(4px, 3px) rotate(0deg); }
-            40% { transform: translate(2px, -2px) rotate(2deg); }
-            50% { transform: translate(-2px, 3px) rotate(-2deg); }
-            60% { transform: translate(-4px, 2px) rotate(0deg); }
-            70% { transform: translate(4px, 2px) rotate(-2deg); }
-            80% { transform: translate(-2px, -2px) rotate(2deg); }
-            90% { transform: translate(2px, 3px) rotate(0deg); }
-            100% { transform: translate(2px, -3px) rotate(-2deg); }
+            0%, 100% { transform: translate(0, 0) rotate(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translate(-4px, -4px) rotate(-2deg); }
+            20%, 40%, 60%, 80% { transform: translate(4px, 4px) rotate(2deg); }
+        }
+
+        @keyframes cinematicReveal {
+            0% { opacity: 0; transform: rotateX(-20deg) scale(0.8) translateY(50px); filter: blur(10px); }
+            100% { opacity: 1; transform: rotateX(0deg) scale(1) translateY(0); filter: blur(0px); }
+        }
+
+        @keyframes neonPulse {
+            0% { color: #fff; text-shadow: 0 0 10px #00ffaa, 0 0 20px #00ffaa, 0 0 30px #00ffaa; }
+            100% { color: #e6ffff; text-shadow: 0 0 20px #00ffaa, 0 0 40px #00ffaa, 0 0 60px #00ffaa, 0 0 80px #00ffaa; }
+        }
+
+        @keyframes slideUpFade {
+            0% { opacity: 0; transform: translateY(30px); }
+            100% { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
@@ -47,7 +74,6 @@
     const canvas = document.getElementById("c");
     const gl = canvas.getContext("webgl2");
 
-    // Biến lưu ID của requestAnimationFrame để sau này có thể ngắt nó
     let animationReqId;
     let safetyTimer;
 
@@ -56,7 +82,7 @@
         document.getElementById("trap-msg").innerHTML = "💀 GPU ĐÃ ĐẮP CHIẾU 💀<br><small>Windows đã ngắt điện để cứu máy!</small>";
         document.getElementById("fps-box").innerText = "SYSTEM CRASH";
         document.getElementById("fps-box").style.color = "red";
-        clearTimeout(safetyTimer); // Hủy hẹn giờ cứu giá nếu máy tự crash trước
+        clearTimeout(safetyTimer); 
     }, false);
 
     if (gl) {
@@ -78,27 +104,21 @@
                 if (unleash > 0.5) {
                     p += sin(p.zxy * 5.0 + time * 2.0) * 0.015;
                 }
-
                 vec3 z = p;
                 float dr = 1.0;
                 float r = 0.0;
-                
                 int max_iter = (unleash > 0.5) ? 20 : 4; 
-                
                 for (int i = 0; i < 20; i++) {
                     if (i >= max_iter) break;
                     r = length(z);
                     if (r > 2.0) break;
-                    
                     if (unleash > 0.5) {
                         z.xy *= rot(time * 0.05);
                         z.xz *= rot(time * 0.08);
                     }
-
                     float theta = acos(z.z / r) * 8.0;
                     float phi = atan(z.y, z.x) * 8.0;
                     dr = pow(r, 7.0) * 8.0 * dr + 1.0;
-                    
                     float zr = pow(r, 8.0);
                     z = zr * vec3(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)) + p;
                 }
@@ -142,27 +162,22 @@
 
             void main() {
                 vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;
-                
                 vec3 ro = vec3(0.0, 0.0, -2.8);
                 float s = sin(time*0.2), c = cos(time*0.2);
                 ro.xz *= mat2(c, -s, s, c);
                 vec3 rd = normalize(vec3(uv.x, uv.y, 1.0));
                 rd.xz *= mat2(c, -s, s, c);
-
                 vec3 col = vec3(0.0);
                 vec3 cur_ro = ro;
                 vec3 cur_rd = rd;
                 vec3 refCol = vec3(1.0);
-
                 int bounces = (unleash > 0.5) ? 2 : 1; 
                 int steps = (unleash > 0.5) ? 400 : 80;
 
                 for(int bounce = 0; bounce < 2; bounce++) {
                     if (bounce >= bounces) break;
-                    
                     float d0 = 0.0;
                     vec3 p;
-                    
                     for(int i = 0; i < 400; i++) {
                         if (i >= steps) break;
                         p = cur_ro + cur_rd * d0;
@@ -174,19 +189,15 @@
                     if(d0 < 12.0) {
                         vec3 n = GetNormal(p);
                         vec3 l1 = normalize(vec3(2.0 * sin(time), 3.0, -2.0 * cos(time)) - p);
-                        
                         float dif1 = max(dot(n, l1), 0.0) * SoftShadow(p, l1);
                         vec3 matCol = vec3(0.2, 0.8, 1.0) * dif1; 
-                        
                         if (unleash > 0.5) {
                             vec3 l2 = normalize(vec3(-2.0, -1.0, 2.0) - p);
                             float dif2 = max(dot(n, l2), 0.0) * SoftShadow(p, l2);
                             float ao = CalcAO(p, n); 
-                            
                             matCol += vec3(1.0, 0.1, 0.2) * dif2;
                             matCol *= ao; 
                         }
-
                         col += refCol * matCol;
                         refCol *= vec3(0.3, 0.4, 0.5); 
                         cur_ro = p + n * 0.005;
@@ -196,7 +207,6 @@
                         break;
                     }
                 }
-
                 col = pow(col, vec3(0.4545));
                 fragColor = vec4(col, 1.0);
             }
@@ -234,11 +244,9 @@
             if (!isUnleashed && now - startTime > 3000) {
                 isUnleashed = true;
                 renderScale = 5.0; 
-                
                 document.getElementById('fake-loading').style.display = "none";
                 document.getElementById('trap-msg').style.display = "block";
                 fpsEl.style.color = "red";
-                
                 canvas.width = window.innerWidth * renderScale;
                 canvas.height = window.innerHeight * renderScale;
             }
@@ -260,32 +268,20 @@
                 fpsEl.innerText = "FPS: " + frames;
                 frames = 0; lastTime = now;
             }
-            
-            // Gán lại ID để có thể hủy sau này
             animationReqId = requestAnimationFrame(render);
         }
         
-        // Bắt đầu vòng lặp render
         animationReqId = requestAnimationFrame(render);
-
-        // --- CƠ CHẾ AN TOÀN SAU 2 PHÚT (120,000 ms) ---
+        
         safetyTimer = setTimeout(() => {
-            // 1. Dừng ngay lập tức việc vẽ đồ họa 3D (Hết lag)
             cancelAnimationFrame(animationReqId);
-            
-            // 2. Ẩn Canvas đi để màn hình về lại màu đen nhẹ nhàng
             canvas.style.display = "none";
             fpsEl.style.display = "none";
-            
-            // 3. Hiện dòng chữ Troll Troll VN
             const uiContainer = document.getElementById("ui");
             uiContainer.innerHTML = `
-                <div style="color: #00ffaa; font-size: 80px; font-weight: bold; text-shadow: 0 0 30px #00ffaa; animation: pop 0.6s ease-out;">
-                    Troll Troll VN 🤡
-                    <br>
-                    <span style="font-size: 24px; color: #fff; text-shadow: none; display: block; margin-top: 15px;">
-                        (Màn kịch kết thúc, GPU đã được tha mạng!)
-                    </span>
+                <div class="end-container">
+                    <div class="troll-title">Troll Troll VN 🤡</div>
+                    <div class="troll-sub">(Màn kịch kết thúc, GPU đã được tha mạng!)</div>
                 </div>
             `;
         }, 120000); 
